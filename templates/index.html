@@ -1,387 +1,387 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bachatgat Loan Management</title>
+    <title>{{ get_marathi_label('app_name') }}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f8f9fa; color: #333; }
-        .container { max-width: 1200px; margin: auto; background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h1, h2 { color: #0056b3; margin-bottom: 15px; }
-        h3 { color: #007bff; margin-top: 25px; margin-bottom: 10px;}
-        .flash-messages { margin-bottom: 20px; }
-        .flash-messages .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .flash-messages .danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .flash-messages .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .flash-messages .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        form { margin-bottom: 20px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #fdfdfd; }
-        form label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
-        form input[type="text"],
-        form input[type="number"],
-        form input[type="file"],
-        form input[type="date"],
-        form select {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 1rem;
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
         }
-        form input[type="checkbox"] {
-            margin-right: 5px;
-        }
-        form input[type="submit"],
-        .button {
+        .navbar {
             background-color: #007bff;
             color: white;
             padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
-        }
-        form input[type="submit"]:hover,
-        .button:hover {
-            background-color: #0056b3;
-        }
-        .button-red {
-            background-color: #dc3545;
-        }
-        .button-red:hover {
-            background-color: #c82333;
-        }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        table, th, td { border: 1px solid #e0e0e0; }
-        th, td { padding: 12px; text-align: left; }
-        th { background-color: #e9ecef; color: #495057; font-weight: bold; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        tr:hover { background-color: #e9f7ff; }
-        .section { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; }
-        .flex-container { display: flex; flex-wrap: wrap; gap: 20px; }
-        .flex-item { flex: 1; min-width: 300px; }
-        .report-summary {
-            background-color: #e9f7ff;
-            border-left: 5px solid #007bff;
-            padding: 15px;
             margin-bottom: 20px;
-            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
         }
-        .report-summary p { margin: 5px 0; }
+        .navbar a {
+            color: white;
+            margin-right: 15px;
+            text-decoration: none;
+        }
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+        .container-fluid {
+            padding: 20px;
+        }
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,.05);
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: bold;
+            padding: 15px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .status-received {
+            color: green;
+            font-weight: bold;
+        }
+        .status-not_received {
+            color: red;
+            font-weight: bold;
+        }
+        .table-loan-details td, .table-loan-details th {
+            padding: 0.5rem;
+            font-size: 0.9em;
+        }
+        .table-loan-details tbody tr:last-child {
+            border-bottom: 1px solid #dee2e6;
+        }
+        .table thead th {
+            background-color: #e9ecef;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Bachatgat Loan Management Dashboard</h1>
+    <nav class="navbar navbar-expand-lg">
+        <a class="navbar-brand" href="/">{{ get_marathi_label('app_name') }}</a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('bulk_upload_transactions', group_id=selected_group_id if selected_group_id else '') }}">{{ get_marathi_label('bulk_upload_transactions') }}</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('bulk_upload_users', group_id=selected_group_id if selected_group_id else '') }}">{{ get_marathi_label('bulk_upload_users') }}</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
 
+    <div class="container-fluid">
         <div class="flash-messages">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="{{ category }}">{{ message }}</div>
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
         </div>
 
-        <div class="section">
-            <h2>Select Group</h2>
-            <form action="/" method="get">
-                <label for="group_select">Choose a Group:</label>
-                <select id="group_select" name="group_id" onchange="this.form.submit()">
-                    <option value="">-- Select Group --</option>
-                    {% for group in groups %}
-                        <option value="{{ group.id }}" {% if selected_group_id == group.id %}selected{% endif %}>
-                            {{ group.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </form>
-        </div>
-
-        {% if selected_group_id %}
-            <div class="section">
-                <h2>Group Details: {{ get_group(selected_group_id).name }}</h2>
-                <p><strong>Bank Account Details:</strong> {{ get_group(selected_group_id).bank_account_details or 'N/A' }}</p>
-                <p><strong>Group Profit:</strong> ₹{{ "%.2f"|format(group_current_profit) }}</p>
-                <p><strong>Default Interest Rate:</strong> {{ "%.2f"|format(get_group(selected_group_id).default_interest_rate) }}% per annum</p>
-            </div>
-
-            <hr>
-
-            <div class="section">
-                <h2>Group Financial Summary</h2>
-                <div class="report-summary">
-                    <p><strong>Total Contributions Received:</strong> ₹{{ "%.2f"|format(reports.total_contributions) }}</p>
-                    <p><strong>Total Loans Disbursed:</strong> ₹{{ "%.2f"|format(reports.total_loans_disbursed) }}</p>
-                    <p><strong>Total Loan Repayments Received:</strong> ₹{{ "%.2f"|format(reports.total_loan_repayments) }}</p>
-                    <p><strong>Total Interest Received (Group Profit):</strong> ₹{{ "%.2f"|format(reports.total_interest_received) }}</p>
-                    <p><strong>Overall Group Profit:</strong> ₹{{ "%.2f"|format(reports.overall_profit) }}</p>
-                    <p><strong>Current Month's Profit:</strong> ₹{{ "%.2f"|format(reports.monthly_profit) }}</p>
-                    <p><strong>Current Year's Profit:</strong> ₹{{ "%.2f"|format(reports.yearly_profit) }}</p>
-                    <p><strong>Current Month's Investment:</strong> ₹{{ "%.2f"|format(reports.monthly_investment) }}</p>
-                    <p><strong>Current Year's Investment:</strong> ₹{{ "%.2f"|format(reports.yearly_investment) }}</p>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        {{ get_marathi_label('select_group') }}
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('index') }}" method="get" class="form-inline">
+                            <div class="form-group mr-3">
+                                <select name="group_id" id="group_select" class="form-control" onchange="this.form.submit()">
+                                    <option value="">{{ get_marathi_label('select_group') }}</option>
+                                    {% for group in groups %}
+                                        <option value="{{ group.id }}" {% if selected_group_id == group.id %}selected{% endif %}>
+                                            {{ group.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </form>
+                        <hr>
+                        <h4>{{ get_marathi_label('add_group') }}</h4>
+                        <form action="{{ url_for('add_group') }}" method="post">
+                            <div class="form-group">
+                                <label for="group_name">{{ get_marathi_label('group_name') }}:</label>
+                                <input type="text" id="group_name" name="group_name" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="bank_account_details">{{ get_marathi_label('bank_account_details') }}:</label>
+                                <input type="text" id="bank_account_details" name="bank_account_details" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="default_interest_rate">{{ get_marathi_label('default_interest_rate') }}:</label>
+                                <input type="number" step="0.01" id="default_interest_rate" name="default_interest_rate" class="form-control" value="12.0" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">{{ get_marathi_label('add') }}</button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
-            <hr>
-
-            <div class="section">
-                <h2>Add/Manage Data</h2>
-                <div class="flex-container">
-                    <div class="flex-item">
-                        <h3>Add Monthly Contribution</h3>
-                        <form action="/add_monthly_contribution/{{ users[0].id if users else 0 }}" method="post">
-                            <label for="contribution_user_id">User:</label>
-                            <select id="contribution_user_id" name="user_id" required>
-                                {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.name }} (ID: {{ user.id }})</option>
-                                {% endfor %}
-                            </select>
-
-                            <label for="contribution_amount">Amount (₹):</label>
-                            <input type="number" id="contribution_amount" name="amount" step="0.01" min="0.01" required>
-
-                            <label for="is_cash_payment_contribution">
-                                <input type="checkbox" id="is_cash_payment_contribution" name="is_cash_payment">
-                                Cash Payment (Mark as pending)
-                            </label>
-                            <input type="submit" value="Add Contribution">
-                        </form>
+            {% if selected_group_id %}
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        {{ get_marathi_label('group_financial_summary') }}
                     </div>
+                    <div class="card-body">
+                        <table class="table table-bordered table-striped">
+                            <tbody>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('overall_profit') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.overall_profit }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('total_contributions') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.total_contributions }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('total_loans_disbursed') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.total_loans_disbursed }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('total_loan_repayments') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.total_loan_repayments }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('total_interest_received') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.total_interest_received }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('monthly_profit') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.monthly_profit }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('yearly_profit') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.yearly_profit }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('monthly_investment') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.monthly_investment }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('yearly_investment') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.yearly_investment }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{{ get_marathi_label('total_pending_cash_payments') }}</strong></td>
+                                    <td>₹{{ "%.2f" % reports.total_pending_cash_payments }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
 
-                    <div class="flex-item">
-                        <h3>Give New Loan (Manual)</h3>
-                        <form action="/add_loan_manual" method="post">
-                            <label for="new_loan_user_id">Borrower (User ID):</label>
-                            <select id="new_loan_user_id" name="user_id" required>
-                                {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.name }} (ID: {{ user.id }})</option>
+        {% if selected_group_id %}
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        {{ get_marathi_label('users_and_loans_summary') }}
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>{{ get_marathi_label('user_name') }}</th>
+                                    <th>{{ get_marathi_label('status') }}</th>
+                                    <th>{{ get_marathi_label('total_loan_amount_outstanding') }}</th>
+                                    <th>{{ get_marathi_label('interest_paid') }}</th>
+                                    <th>{{ get_marathi_label('remaining_loan_amount_with_interest') }}</th>
+                                    <th>{{ get_marathi_label('monthly_contribution_status') }}</th>
+                                    <th>{{ get_marathi_label('action') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_data in users_data_for_table %}
+                                <tr>
+                                    <td>
+                                        {{ user_data.user_name }} 
+                                        {% if user_data.is_admin %}<span class="badge badge-info">प्रशासक</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if user_data.user_status == 'active' %}badge-success{% else %}badge-secondary{% endif %}">
+                                            {{ get_marathi_label('status_active') if user_data.user_status == 'active' else get_marathi_label('status_inactive') }}
+                                        </span>
+                                        <form action="{{ url_for('toggle_user_status', user_id=user_data.user_id) }}" method="post" style="display:inline;">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary ml-2">{{ get_marathi_label('toggle_status') }}</button>
+                                        </form>
+                                    </td>
+                                    <td>₹{{ "%.2f" % user_data.total_loan_amount_outstanding }}</td>
+                                    <td>₹{{ "%.2f" % user_data.total_interest_paid }}</td>
+                                    <td>₹{{ "%.2f" % user_data.remaining_loan_amount_with_accrued_interest }}</td>
+                                    <td>
+                                        <span class="{% if user_data.monthly_contribution_status == 'received' %}status-received{% else %}status-not_received{% endif %}">
+                                            {{ 'मिळाले' if user_data.monthly_contribution_status == 'received' else 'मिळाले नाही' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" type="button" data-toggle="collapse" data-target="#userLoans{{ user_data.user_id }}" aria-expanded="false" aria-controls="userLoans{{ user_data.user_id }}">
+                                            {{ get_marathi_label('view_details') }}
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="7" class="p-0">
+                                        <div class="collapse" id="userLoans{{ user_data.user_id }}">
+                                            <div class="card card-body p-0">
+                                                <h6 class="mt-2 ml-3">{{ user_data.user_name }} चे कर्ज तपशील:</h6>
+                                                <table class="table table-sm table-loan-details mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>{{ get_marathi_label('loan_id') }}</th>
+                                                            <th>{{ get_marathi_label('original_amount') }}</th>
+                                                            <th>{{ get_marathi_label('outstanding_balance') }}</th>
+                                                            <th>{{ get_marathi_label('interest_rate') }}</th>
+                                                            <th>{{ get_marathi_label('issue_date') }}</th>
+                                                            <th>{{ get_marathi_label('status') }}</th>
+                                                            <th>{{ get_marathi_label('action') }}</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for loan in user_data.loans %}
+                                                        <tr>
+                                                            <td>{{ loan.id }}</td>
+                                                            <td>₹{{ "%.2f" % loan.original_amount }}</td>
+                                                            <td>₹{{ "%.2f" % loan.outstanding_balance }}</td>
+                                                            <td>{{ "%.2f" % loan.current_interest_rate }}%</td>
+                                                            <td>{{ loan.issue_date }}</td>
+                                                            <td>
+                                                                <span class="badge {% if loan.status == 'active' %}badge-warning{% else %}badge-success{% endif %}">
+                                                                    {{ get_marathi_label('status_active') if loan.status == 'active' else get_marathi_label('status_paid_off') }}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                {% if loan.status == 'active' %}
+                                                                <form action="{{ url_for('repay_loan', loan_id=loan.id) }}" method="post" class="d-inline">
+                                                                    <div class="input-group input-group-sm">
+                                                                        <input type="number" step="0.01" name="repayment_amount" class="form-control" placeholder="{{ get_marathi_label('repayment_amount') }}" required min="0.01">
+                                                                        <div class="input-group-append">
+                                                                            <button type="submit" class="btn btn-sm btn-success">{{ get_marathi_label('repay_loan') }}</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </form>
+                                                                <form action="{{ url_for('change_loan_interest_rate') }}" method="post" class="d-inline ml-2">
+                                                                    <input type="hidden" name="loan_id" value="{{ loan.id }}">
+                                                                    <div class="input-group input-group-sm">
+                                                                        <input type="number" step="0.01" name="new_interest_rate" class="form-control" placeholder="{{ get_marathi_label('new_interest_rate') }}" required min="0.01" max="100">
+                                                                        <div class="input-group-append">
+                                                                            <button type="submit" class="btn btn-sm btn-warning">{{ get_marathi_label('change_interest_rate') }}</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </form>
+                                                                {% else %}
+                                                                    -
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                        {% if not user_data.loans %}
+                                                            <tr><td colspan="7">या सदस्याला कोणतेही कर्ज नाही.</td></tr>
+                                                        {% endif %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                                 {% endfor %}
-                            </select>
+                                {% if not users_data_for_table %}
+                                    <tr><td colspan="7">{{ get_marathi_label('no_users_in_group') if selected_group_id else get_marathi_label('please_select_group') }}</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">{{ get_marathi_label('add_new_user') }}</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('add_user') }}" method="post">
                             <input type="hidden" name="group_id" value="{{ selected_group_id }}">
-
-                            <label for="loan_amount">Loan Amount (₹):</label>
-                            <input type="number" id="loan_amount" name="loan_amount" step="0.01" min="0.01" required>
-
-                            <label for="loan_issue_date">Issue Date:</label>
-                            <input type="date" id="loan_issue_date" name="loan_issue_date" value="{{ current_date }}" required>
-
-                            <label for="loan_interest_rate">Annual Interest Rate (%):</label>
-                            <input type="number" id="loan_interest_rate" name="loan_interest_rate" step="0.01" min="0" max="100" value="{{ get_group(selected_group_id).default_interest_rate }}" required>
-
-                            <input type="submit" value="Issue Loan">
+                            <div class="form-group">
+                                <label for="user_name">{{ get_marathi_label('user_name_input') }}:</label>
+                                <input type="text" id="user_name" name="user_name" class="form-control" required>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
+                                <label class="form-check-label" for="is_admin">{{ get_marathi_label('is_admin') }}</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-3">{{ get_marathi_label('add') }}</button>
                         </form>
                     </div>
+                </div>
+            </div>
 
-                    <div class="flex-item">
-                        <h3>Change Loan Interest Rate</h3>
-                        <form action="/change_loan_interest_rate" method="post">
-                            <label for="loan_id_rate_change">Loan ID:</label>
-                            <input type="number" id="loan_id_rate_change" name="loan_id" required>
-
-                            <label for="new_interest_rate_val">New Annual Interest Rate (%):</label>
-                            <input type="number" id="new_interest_rate_val" name="new_interest_rate" step="0.01" min="0" max="100" required>
-                            <input type="submit" value="Update Rate">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">{{ get_marathi_label('add_new_loan') }}</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('add_loan_manual') }}" method="post">
+                            <input type="hidden" name="group_id" value="{{ selected_group_id }}">
+                            <div class="form-group">
+                                <label for="loan_user_id">सदस्य (ID):</label>
+                                <select name="user_id" id="loan_user_id" class="form-control" required>
+                                    <option value="">सदस्य निवडा</option>
+                                    {% for user_data in users_data_for_table %}
+                                        <option value="{{ user_data.user_id }}">{{ user_data.user_name }} (ID: {{ user_data.user_id }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="loan_amount">{{ get_marathi_label('loan_amount') }}:</label>
+                                <input type="number" step="0.01" id="loan_amount" name="loan_amount" class="form-control" required min="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label for="loan_issue_date">{{ get_marathi_label('loan_issue_date') }}:</label>
+                                <input type="date" id="loan_issue_date" name="loan_issue_date" class="form-control" value="{{ current_date }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="loan_interest_rate">{{ get_marathi_label('loan_interest_rate') }}:</label>
+                                <input type="number" step="0.01" id="loan_interest_rate" name="loan_interest_rate" class="form-control" value="12.0" required min="0.01" max="100">
+                            </div>
+                            <button type="submit" class="btn btn-primary">{{ get_marathi_label('add') }}</button>
                         </form>
                     </div>
-                </div> </div>
-
-            <hr>
-
-            <div class="section">
-                <h2>Bulk Upload Transactions</h2>
-                <p>Upload a CSV file for contributions, loan repayments, interest payments, or loan disbursements.</p>
-                <p>
-                    <strong>CSV Columns:</strong> <br>
-                    `user_name` (exact name of user), `type` (e.g., `contribution`, `loan_repayment`, `interest_paid`, `loan_disbursement`), `amount`, `date` (YYYY-MM-DD) <br>
-                    `is_cash_payment` (0 or 1, optional), `is_paid` (0 or 1, optional, default 1) <br>
-                    `loan_id` (<strong>Required for `loan_repayment` and `interest_paid`</strong>, leave blank for `contribution`/`loan_disbursement`)<br>
-                    `new_loan_interest_rate` (Optional, **for `loan_disbursement` only**, overrides group default rate)
-                </p>
-                <a href="{{ url_for('download_sample_transaction_csv') }}" class="button" style="display: inline-block; margin-bottom: 15px;">Download Sample Transaction CSV</a>
-                <form action="{{ url_for('bulk_upload_transactions', group_id=selected_group_id) }}" method="post" enctype="multipart/form-data">
-                    <input type="file" name="csv_file" accept=".csv" required>
-                    <input type="submit" value="Upload Transactions CSV">
-                </form>
+                </div>
             </div>
-
-            <div class="section">
-                <h2>Bulk Upload Users</h2>
-                <p>Upload a CSV file to add multiple users to this or other groups.</p>
-                <p>
-                    <strong>CSV Columns:</strong> <br>
-                    `user_name`, `group_id` (or `group_name`), `is_admin` (0 or 1, optional), `status` (e.g., `active`, `inactive`, optional)
-                </p>
-                <a href="{{ url_for('download_sample_users_csv') }}" class="button" style="display: inline-block; margin-bottom: 15px;">Download Sample Users CSV</a>
-                <form action="{{ url_for('bulk_upload_users', group_id=selected_group_id) }}" method="post" enctype="multipart/form-data">
-                    <input type="file" name="csv_file" accept=".csv" required>
-                    <input type="submit" value="Upload Users CSV">
-                </form>
-            </div>
-
-            <hr>
-
-            <div class="section">
-                <h2>Group Members & Loans</h2>
-                {% for user in users %}
-                    <h3>{{ user.name }} (User ID: {{ user.id }}) - Status: {{ user.status }}</h3>
-                    <p><strong>Admin:</strong> {{ 'Yes' if user.is_admin else 'No' }}</p>
-
-                    <h4>Loans for {{ user.name }}</h4>
-                    {% if user_loans[user.id] %}
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Loan ID</th>
-                                    <th>Original Amount (₹)</th>
-                                    <th>Outstanding Balance (₹)</th>
-                                    <th>Annual Rate (%)</th>
-                                    <th>Issue Date</th>
-                                    <th>Last Calc Date</th>
-                                    <th>Status</th>
-                                    <th>Interest Due (Approx)*</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for loan in user_loans[user.id] %}
-                                <tr>
-                                    <td>{{ loan.id }}</td>
-                                    <td>{{ "%.2f"|format(loan.original_amount) }}</td>
-                                    <td>{{ "%.2f"|format(loan.outstanding_balance) }}</td>
-                                    <td>{{ "%.2f"|format(loan.current_interest_rate) }}</td>
-                                    <td>{{ loan.issue_date }}</td>
-                                    <td>{{ loan.last_interest_calc_date }}</td>
-                                    <td>{{ loan.status }}</td>
-                                    <td>
-                                        {% if loan.status == 'active' %}
-                                            {% set today_date = current_date %}
-                                            ₹{{ "%.2f"|format(calculate_interest_due(loan.outstanding_balance, loan.current_interest_rate, loan.last_interest_calc_date, today_date)) }}
-                                        {% else %}
-                                            N/A
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if loan.status == 'active' %}
-                                            <form action="/repay_loan/{{ loan.id }}" method="post" style="display:inline-block;">
-                                                <input type="number" name="repayment_amount" placeholder="Repay Amount" step="0.01" min="0.01" required style="width: 120px; margin-right: 5px;">
-                                                <input type="submit" value="Repay">
-                                            </form>
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        <p style="font-size: 0.8em; color: #666; margin-top: 5px;">
-                            *Approx. Interest Due is calculated based on outstanding balance, current annual rate, and days since 'Last Calc Date' to today. This does not automatically add to outstanding balance until a repayment or specific interest accrual transaction occurs.
-                        </p>
-                    {% else %}
-                        <p>No loans for {{ user.name }}.</p>
-                    {% endif %}
-
-                    <h4>Transactions for {{ user.name }}</h4>
-                    {% if user_transactions[user.id] %}
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Amount (₹)</th>
-                                    <th>Description</th>
-                                    <th>Cash Payment?</th>
-                                    <th>Paid Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for transaction in user_transactions[user.id] %}
-                                <tr>
-                                    <td>{{ transaction.date }}</td>
-                                    <td>{{ transaction.type | replace('_', ' ') | title }}</td>
-                                    <td>{{ "%.2f"|format(transaction.amount) }}</td>
-                                    <td>{{ transaction.description or 'N/A' }}</td>
-                                    <td>{{ 'Yes' if transaction.is_cash_payment else 'No' }}</td>
-                                    <td>{{ 'Paid' if transaction.is_paid else 'Pending' }}</td>
-                                    <td>
-                                        {% if transaction.is_cash_payment and not transaction.is_paid and admin_user_id == 1 %}
-                                            <form action="/mark_payment_paid/{{ transaction.id }}" method="post" style="display:inline-block;">
-                                                <input type="submit" value="Mark Paid" class="button-red">
-                                            </form>
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    {% else %}
-                        <p>No transactions for {{ user.name }}.</p>
-                    {% endif %}
-                    <hr>
-                {% endfor %}
-            </div>
-
+        </div>
         {% else %}
-            <p>Please select a group to view its members and manage data.</p>
+        <div class="alert alert-info mt-4">
+            {{ get_marathi_label('please_select_group') }}
+        </div>
         {% endif %}
-
-        <div class="section">
-            <h2>Add New Group</h2>
-            <form action="/add_group" method="post">
-                <label for="group_name">Group Name:</label>
-                <input type="text" id="group_name" name="group_name" required>
-
-                <label for="bank_account_details">Bank Account Details (Optional):</label>
-                <input type="text" id="bank_account_details" name="bank_account_details">
-
-                <label for="default_interest_rate">Default Annual Interest Rate (%) (e.g., 12.0):</label>
-                <input type="number" id="default_interest_rate" name="default_interest_rate" step="0.01" min="0" max="100" value="12.0" required>
-
-                <input type="submit" value="Add Group">
-            </form>
-        </div>
-
-        <div class="section">
-            <h2>Add New User</h2>
-            <form action="/add_user" method="post">
-                <label for="user_name">User Name:</label>
-                <input type="text" id="user_name" name="user_name" required>
-
-                <label for="group_id">Group:</label>
-                <select id="group_id" name="group_id" required>
-                    {% for group in groups %}
-                    <option value="{{ group.id }}">{{ group.name }}</option>
-                    {% endfor %}
-                </select>
-
-                <label for="is_admin">
-                    <input type="checkbox" id="is_admin" name="is_admin">
-                    Make Admin (Proceed with caution)
-                </label>
-                <input type="submit" value="Add User">
-            </form>
-        </div>
-
-        <div class="section">
-            <h2>Manage User Status</h2>
-            <p>Admin only: Toggle user active/inactive status. Inactive users do not participate in interest distribution.</p>
-            <form action="/toggle_user_status/{{ users[0].id if users else 0 }}" method="post">
-                <label for="status_user_id">User:</label>
-                <select id="status_user_id" name="user_id" required>
-                    {% for user in users %}
-                    <option value="{{ user.id }}">{{ user.name }} (ID: {{ user.id }}) - Current: {{ user.status }}</option>
-                    {% endfor %}
-                </select>
-                <input type="submit" value="Toggle Status" class="button-red">
-            </form>
-        </div>
-
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

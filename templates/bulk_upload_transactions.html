@@ -1,90 +1,127 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulk Upload Transactions</title>
+    <title>{{ get_marathi_label('bulk_upload_transactions') }} - {{ get_marathi_label('app_name') }}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f8f9fa; color: #333; }
-        .container { max-width: 800px; margin: auto; background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h1, h2 { color: #0056b3; margin-bottom: 15px; }
-        .flash-messages { margin-bottom: 20px; }
-        .flash-messages .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .flash-messages .danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .flash-messages .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .flash-messages .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        form { margin-bottom: 20px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #fdfdfd; }
-        form label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
-        form input[type="file"] {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 1rem;
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
         }
-        form input[type="submit"],
-        .button {
+        .navbar {
             background-color: #007bff;
             color: white;
             padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
         }
-        form input[type="submit"]:hover,
-        .button:hover {
-            background-color: #0056b3;
-        }
-        a {
+        .navbar a {
+            color: white;
+            margin-right: 15px;
             text-decoration: none;
-            color: #007bff;
         }
-        a:hover {
+        .navbar a:hover {
             text-decoration: underline;
         }
-        .back-link {
-            display: block;
+        .container {
+            padding: 20px;
+            max-width: 800px;
             margin-top: 20px;
-            font-size: 1.1rem;
+        }
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,.05);
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: bold;
+            padding: 15px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg">
+        <a class="navbar-brand" href="{{ url_for('index', group_id=selected_group_id if selected_group_id) }}">{{ get_marathi_label('app_name') }}</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('index', group_id=selected_group_id if selected_group_id) }}">{{ get_marathi_label('back_to_summary') }}</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
     <div class="container">
-        <h1>Bulk Upload Transactions</h1>
         <div class="flash-messages">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="{{ category }}">{{ message }}</div>
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
         </div>
 
-        <p>Upload a CSV file containing various transaction types (contributions, loan repayments, interest payments, loan disbursements).</p>
-        <p>
-            <strong>CSV Columns:</strong> <br>
-            `user_name` (exact name of user), `type` (e.g., `contribution`, `loan_repayment`, `interest_paid`, `loan_disbursement`), `amount`, `date` (YYYY-MM-DD) <br>
-            `is_cash_payment` (0 or 1, optional, default 0), `is_paid` (0 or 1, optional, default 1) <br>
-            `loan_id` (<strong>Required for `loan_repayment` and `interest_paid`</strong>, leave blank for `contribution`/`loan_disbursement`)<br>
-            `new_loan_interest_rate` (Optional, **for `loan_disbursement` only**, overrides group default rate)
-        </p>
-        <p>
-            <strong>Important:</strong> All transactions in the uploaded CSV must belong to the currently selected group (Group ID: **{{ selected_group_id }}**).
-        </p>
-        <a href="{{ url_for('download_sample_transaction_csv') }}" class="button" style="display: inline-block; margin-bottom: 15px;">Download Sample Transaction CSV</a>
+        <div class="card">
+            <div class="card-header">
+                <h3>{{ get_marathi_label('bulk_upload_transactions') }}</h3>
+                {% if selected_group_id %}
+                    <h5>गट: {{ get_group(selected_group_id)['name'] }} (ID: {{ selected_group_id }})</h5>
+                {% else %}
+                    <p class="text-danger">{{ get_marathi_label('please_select_group') }}</p>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if selected_group_id %}
+                    <p>कृपया खालील फॉरमॅटमध्ये CSV फाइल तयार करा आणि अपलोड करा. हे व्यवहार फक्त निवडलेल्या गटातील सदस्यांसाठी असतील.</p>
+                    <p>उदा. CSV हेडर्स: <code>user_name,type,amount,date,is_cash_payment,is_paid,loan_id,new_loan_interest_rate</code></p>
+                    <ul>
+                        <li><code>user_name</code>: सदस्याचे पूर्ण नाव (अनिवार्य).</li>
+                        <li><code>type</code>: व्यवहाराचा प्रकार ('contribution', 'loan_disbursement', 'loan_repayment', 'interest_paid').</li>
+                        <li><code>amount</code>: व्यवहार रक्कम (अनिवार्य).</li>
+                        <li><code>date</code>: व्यवहार तारीख (YYYY-MM-DD फॉरमॅटमध्ये, रिकामे ठेवल्यास आजची तारीख).</li>
+                        <li><code>is_cash_payment</code>: 1 जर रोख भरणा असेल, 0 जर नसेल (रिकामे ठेवल्यास 0).</li>
+                        <li><code>is_paid</code>: 1 जर भरणा झाला असेल, 0 जर बाकी असेल (रोख भरणासाठी वापरले जाते, रिकामे ठेवल्यास 1).</li>
+                        <li><code>loan_id</code>: कर्ज आयडी (<code>loan_repayment</code> किंवा <code>interest_paid</code> साठी आवश्यक).</li>
+                        <li><code>new_loan_interest_rate</code>: नवीन कर्जासाठी व्याज दर (<code>loan_disbursement</code> साठी, रिकामे ठेवल्यास गटाचा पूर्वनिर्धारित दर वापरला जातो).</li>
+                    </ul>
 
-        <form action="{{ url_for('bulk_upload_transactions', group_id=selected_group_id) }}" method="post" enctype="multipart/form-data">
-            <label for="csv_file">Select CSV File:</label>
-            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
-            <input type="submit" value="Upload Transactions CSV">
-        </form>
+                    <p>
+                        <a href="{{ url_for('download_sample_transaction_csv') }}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-download"></i> {{ get_marathi_label('download_sample_transactions') }}
+                        </a>
+                    </p>
 
-        <a href="{{ url_for('index', group_id=selected_group_id) }}" class="back-link">← Back to Dashboard</a>
+                    <form method="POST" enctype="multipart/form-data" action="{{ url_for('bulk_upload_transactions', group_id=selected_group_id) }}">
+                        <div class="form-group">
+                            <label for="csv_file">{{ get_marathi_label('choose_csv_file') }}:</label>
+                            <input type="file" name="csv_file" id="csv_file" accept=".csv" class="form-control-file" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">{{ get_marathi_label('upload') }}</button>
+                    </form>
+                {% else %}
+                    <p>{{ get_marathi_label('please_select_group') }}</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

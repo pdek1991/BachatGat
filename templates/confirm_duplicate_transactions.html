@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ get_marathi_label('confirm_duplicates_title') }} - {{ get_marathi_label('app_name') }}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,.1);
+            background-color: #fff;
+            max-width: 700px;
+            width: 90%;
+        }
+        .card-header {
+            background-color: #ffc107; /* Warning color */
+            color: #333;
+            font-weight: bold;
+            padding: 15px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .duplicate-table {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .duplicate-table table {
+            width: 100%;
+            margin-bottom: 0;
+            border-collapse: collapse;
+        }
+        .duplicate-table th, .duplicate-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .duplicate-table thead {
+            background-color: #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .duplicate-table tbody tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header text-center">
+                <h3>{{ get_marathi_label('confirm_duplicates_title') }}</h3>
+            </div>
+            <div class="card-body">
+                <p>{{ get_marathi_label('confirm_duplicates_message') }}</p>
+                <p><strong>गट:</strong> {{ group_name }} (ID: {{ selected_group_id }})</p>
+                
+                <h5 class="mt-4">{{ get_marathi_label('duplicate_details') }}</h5>
+                <div class="duplicate-table">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>पंक्ती क्र.</th>
+                                <th>{{ get_marathi_label('user_name') }}</th>
+                                <th>{{ get_marathi_label('transaction_type') }}</th>
+                                <th>{{ get_marathi_label('transaction_amount') }}</th>
+                                <th>{{ get_marathi_label('transaction_date') }}</th>
+                                <th>{{ get_marathi_label('loan_id') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for duplicate_group in duplicates %}
+                                {% for item in duplicate_group %}
+                                <tr>
+                                    <td>{{ item.row_num }}</td>
+                                    <td>{{ item.user_name }}</td>
+                                    <td>{{ item.type }}</td>
+                                    <td>₹{{ "%.2f" % item.amount }}</td>
+                                    <td>{{ item.date }}</td>
+                                    <td>{{ item.loan_id if item.loan_id is not none else '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if not loop.last %}
+                                <tr><td colspan="6" class="table-info text-center">--- पुढील दुबार सेट ---</td></tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <form method="POST" action="{{ url_for('confirm_duplicate_transactions') }}">
+                    <input type="hidden" name="group_id" value="{{ selected_group_id }}">
+                    <div class="form-group text-center">
+                        <button type="submit" name="action" value="accept" class="btn btn-success btn-lg mr-3">
+                            {{ get_marathi_label('accept_all_duplicates') }}
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger btn-lg">
+                            {{ get_marathi_label('reject_duplicates') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
