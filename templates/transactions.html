@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ get_marathi_label('view_all_transactions') }} - {{ user.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        .transaction-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .transaction-table th, .transaction-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            white-space: nowrap; /* Prevent wrapping for better readability of data */
+        }
+        .transaction-table th {
+            background-color: #f2f2f2;
+            font-weight: 600;
+            color: #555;
+        }
+        .transaction-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .transaction-table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn {
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            display: inline-block; /* For buttons in forms */
+            text-decoration: none; /* For anchor tags styled as buttons */
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+        .btn-secondary {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        .form-control {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .status-paid {
+            color: green;
+            font-weight: bold;
+        }
+        .status-pending {
+            color: orange;
+            font-weight: bold;
+        }
+        .status-not-applicable {
+            color: gray;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="header">
+            <h1 class="text-3xl font-bold">{{ get_marathi_label('view_all_transactions') }}</h1>
+            <h2 class="text-xl mt-2">({{ user.name }})</h2>
+        </header>
+
+        <div class="mb-6">
+            <a href="{{ url_for('index', group_id=group_id) }}" class="btn btn-secondary">{{ get_marathi_label('back_to_dashboard') }}</a>
+        </div>
+
+        <div class="card mb-6">
+            <h3 class="text-xl font-semibold mb-4">{{ get_marathi_label('filter_transactions') }}</h3>
+            <form action="{{ url_for('view_transactions', user_id=user.id) }}" method="get" class="flex flex-wrap items-end space-x-4">
+                <div class="form-group">
+                    <label for="from_date" class="block text-sm font-medium text-gray-700">{{ get_marathi_label('from_date') }}</label>
+                    <input type="date" id="from_date" name="from_date" class="form-control" value="{{ from_date }}">
+                </div>
+                <div class="form-group">
+                    <label for="to_date" class="block text-sm font-medium text-gray-700">{{ get_marathi_label('to_date') }}</label>
+                    <input type="date" id="to_date" name="to_date" class="form-control" value="{{ to_date }}">
+                </div>
+                <button type="submit" class="btn btn-primary">{{ get_marathi_label('apply_filter') }}</button>
+                <a href="{{ url_for('view_transactions', user_id=user.id) }}" class="btn btn-secondary">{{ get_marathi_label('clear_filter') }}</a>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3 class="text-xl font-semibold mb-4">{{ get_marathi_label('transaction_history') }}</h3>
+            {% if transactions %}
+                <div class="table-container">
+                    <table class="transaction-table">
+                        <thead>
+                            <tr>
+                                <th>{{ get_marathi_label('date') }}</th>
+                                <th>{{ get_marathi_label('type') }}</th>
+                                <th>{{ get_marathi_label('amount') }} (₹)</th>
+                                <th>{{ get_marathi_label('is_cash_payment') }}</th>
+                                <th>{{ get_marathi_label('is_paid') }}</th>
+                                <th>{{ get_marathi_label('loan_id') }}</th>
+                                <th>{{ get_marathi_label('new_loan_interest_rate') }}</th>
+                                <th>{{ get_marathi_label('description') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                                <tr>
+                                    <td>{{ transaction.date }}</td>
+                                    <td>{{ transaction.type }}</td>
+                                    <td>{{ transaction.amount | round(2) }}</td>
+                                    <td>
+                                        {% if transaction.is_cash_payment == 1 %}
+                                            {{ get_marathi_label('yes') }}
+                                        {% else %}
+                                            {{ get_marathi_label('no') }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if transaction.is_cash_payment == 1 %}
+                                            {% if transaction.is_paid == 1 %}
+                                                <span class="status-paid">{{ get_marathi_label('paid') }}</span>
+                                            {% else %}
+                                                <span class="status-pending">{{ get_marathi_label('pending') }}</span>
+                                                <form action="{{ url_for('mark_cash_payment_paid', transaction_id=transaction.id) }}" method="post" class="inline-block ml-2">
+                                                    <button type="submit" class="btn btn-primary text-xs px-2 py-1">{{ get_marathi_label('mark_paid') }}</button>
+                                                </form>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="status-not-applicable">{{ get_marathi_label('not_applicable') }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.loan_id if transaction.loan_id else '-' }}</td>
+                                    <td>{{ transaction.new_loan_interest_rate | round(2) if transaction.new_loan_interest_rate else '-' }}</td>
+                                    <td>{{ transaction.description if transaction.description else '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-gray-600">{{ get_marathi_label('no_transactions_found') }}</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
