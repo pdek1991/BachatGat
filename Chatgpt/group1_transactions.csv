@@ -1,6 +1,8 @@
 user_name,type,amount,date,is_cash_payment,is_paid,loan_id
 सुनिता सुधाकर कांबळे,contribution,2000,2025-05-01,0,1,
-विमल दिगंबर कदम,contribution,5000,2025-05-01,0,1,
+विमल दिगंबर कदम,contribution,2000,2025-05-01,0,1,
+विमल दिगंबर कदम,loan_repayment,10000,2025-05-01,0,1,1
+विमल दिगंबर कदम,contribution,1000,2025-05-01,1,1,
 चैत्राली सचिन कदम,contribution,2000,2025-05-01,1,1,
 पल्लवी प्रशांत कदम,contribution,2000,2025-05-01,0,1,
 मीनाक्षी संजय काकडे,contribution,2000,2025-05-01,0,1,

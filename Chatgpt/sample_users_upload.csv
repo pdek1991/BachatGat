@@ -1,0 +1,4 @@
+user_name,group_id,is_admin,status
+Alice,1,0,active
+Bob,1,1,active
+Charlie,2,0,active

@@ -1,0 +1,535 @@
+/* General Body and Container Styling */
+body {
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f2f5; /* Light grey background */
+    color: #333;
+    line-height: 1.6;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.container {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    max-width: 1200px;
+    width: 100%;
+    margin: 20px auto;
+    box-sizing: border-box;
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 15px;
+}
+
+h2 {
+    color: #34495e;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 1.8em;
+}
+
+h3 {
+    color: #555;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 1.4em;
+}
+
+/* Card Sections */
+.card {
+    background-color: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Forms */
+form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+form input[type="text"],
+form input[type="number"],
+form input[type="date"],
+form select,
+form input[type="file"] {
+    flex: 1;
+    min-width: 180px;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1em;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+form input[type="text"]:focus,
+form input[type="number"]:focus,
+form input[type="date"]:focus,
+form select:focus,
+form input[type="file"]:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
+
+form button {
+    padding: 10px 20px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+form button:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+}
+
+form button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #555;
+    font-size: 0.95em;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin-right: 0;
+}
+
+.upi-info {
+    font-size: 0.85em;
+    color: #7f8c8d;
+    margin-top: 5px;
+    text-align: center;
+    width: 100%;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: separate; /* Use separate for rounded corners */
+    border-spacing: 0;
+    margin-top: 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    overflow: hidden; /* Ensures rounded corners apply to content */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+th, td {
+    border: 1px solid #e0e0e0;
+    padding: 15px;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background-color: #ecf0f1;
+    color: #2c3e50;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.9em;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* Specific table column adjustments */
+td:nth-child(3), td:nth-child(4) { /* Contributions and Loans columns */
+    max-width: 250px; /* Limit width to prevent excessive stretching */
+    word-wrap: break-word; /* Break long words */
+}
+
+/* Transaction Lists within table cells */
+.transaction-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.transaction-list li {
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px dotted #eee;
+    font-size: 0.9em;
+}
+
+.transaction-list li:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.pending-tag {
+    background-color: #f39c12;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 0.75em;
+    margin-left: 5px;
+    display: inline-block;
+}
+
+.cash-pending {
+    color: #c0392b; /* Red text for pending cash */
+    font-weight: bold;
+}
+
+/* Status Badges */
+.status-active {
+    background-color: #2ecc71; /* Green */
+    color: white;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.status-inactive {
+    background-color: #e74c3c; /* Red */
+    color: white;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.status-paid_off {
+    background-color: #95a5a6; /* Grey */
+    color: white;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+
+/* Small Buttons (for Mark Paid, Activate/Deactivate) */
+.small-button {
+    padding: 5px 10px;
+    font-size: 0.8em;
+    margin-left: 5px;
+    border-radius: 5px;
+    background-color: #1abc9c; /* Teal */
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.small-button:hover {
+    background-color: #16a085;
+}
+
+.small-button.deactivate {
+    background-color: #e74c3c; /* Red for deactivate */
+}
+.small-button.deactivate:hover {
+    background-color: #c0392b;
+}
+.small-button.activate {
+    background-color: #2ecc71; /* Green for activate */
+}
+.small-button.activate:hover {
+    background-color: #27ae60;
+}
+
+/* Repay Loan Forms */
+.repay-form {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #eee;
+    display: block; /* Ensure it takes full width */
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.repay-form p {
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.repay-form input[type="number"] {
+    width: calc(100% - 24px); /* Adjust for padding/border */
+    margin-bottom: 8px;
+}
+
+.repay-form button {
+    width: auto; /* Allow button to size naturally */
+    align-self: flex-end;
+    background-color: #f39c12; /* Orange */
+}
+
+.repay-form button:hover {
+    background-color: #e67e22;
+}
+
+
+/* Group Specific Info */
+.group-title {
+    text-align: center;
+    color: #2980b9;
+    font-size: 2.2em;
+    margin-top: 40px;
+    margin-bottom: 10px;
+}
+
+.bank-details, .group-balance {
+    text-align: center;
+    font-size: 1.1em;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.group-balance {
+    font-weight: bold;
+    color: #27ae60; /* Green for balance */
+    font-size: 1.3em;
+    margin-bottom: 30px;
+}
+
+/* Report Section */
+.report-section {
+    margin-top: 40px;
+}
+
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.report-item {
+    background-color: #ecf0f1;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+}
+
+.report-item:hover {
+    transform: translateY(-5px);
+}
+
+.report-item h3 {
+    color: #2c3e50;
+    margin-top: 0;
+    font-size: 1.2em;
+}
+
+.report-item p {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #27ae60;
+    margin: 10px 0 0;
+}
+
+/* Bulk Upload Specifics */
+.csv-format-info {
+    background-color: #ecf0f1;
+    border: 1px dashed #bdc3c7;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.csv-format-info pre {
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+}
+
+.csv-format-info strong {
+    color: #2c3e50;
+}
+
+.button-link {
+    display: inline-block;
+    padding: 10px 15px;
+    background-color: #9b59b6; /* Purple */
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+    margin-top: 10px;
+}
+
+.button-link:hover {
+    background-color: #8e44ad;
+}
+
+/* Flash Message Styling */
+.flashes {
+    list-style-type: none;
+    padding: 0;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.flashes li {
+    padding: 12px 20px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1em;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.flashes .success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.flashes .danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.flashes .info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.flashes .warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.info-message {
+    text-align: center;
+    padding: 20px;
+    background-color: #e8f4f8;
+    border: 1px solid #bce8f1;
+    border-radius: 8px;
+    color: #31708f;
+    font-size: 1.1em;
+    margin-top: 30px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+        margin: 10px auto;
+    }
+
+    h1 {
+        font-size: 1.8em;
+    }
+
+    h2 {
+        font-size: 1.5em;
+    }
+
+    form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    form input[type="text"],
+    form input[type="number"],
+    form input[type="date"],
+    form select,
+    form input[type="file"] {
+        min-width: unset;
+        width: 100%;
+    }
+
+    form button {
+        width: 100%;
+    }
+
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    tr {
+        margin-bottom: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    td {
+        border: none;
+        border-bottom: 1px solid #e0e0e0;
+        position: relative;
+        padding-left: 50%;
+        text-align: right;
+    }
+
+    td:before {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+        color: #555;
+    }
+
+    td:nth-of-type(1):before { content: "Name:"; }
+    td:nth-of-type(2):before { content: "Status:"; }
+    td:nth-of-type(3):before { content: "Contributions:"; }
+    td:nth-of-type(4):before { content: "Loans:"; }
+    td:nth-of-type(5):before { content: "Add Contribution:"; }
+    td:nth-of-type(6):before { content: "Add Loan:"; }
+    td:nth-of-type(7):before { content: "Admin Actions:"; } /* Adjust if admin column is present */
+
+    .report-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .repay-form input[type="number"] {
+        width: 100%;
+    }
+}

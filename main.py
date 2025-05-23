@@ -21,7 +21,7 @@ MARATHI_LABELS = {
     'default_interest_rate': 'कर्जावरील पूर्वनिर्धारित व्याज दर (%)',
     'add': 'जोडा',
     'group_financial_summary': 'गटाचा आर्थिक सारांश',
-    'overall_summary': 'एकूण सारांश',
+    'overall_summary': 'एकूण नफा',
     'total_contributions': 'एकूण योगदान',
     'total_loans_disbursed': 'वितरित एकूण कर्ज',
     'total_loan_repayments': 'एकूण कर्ज परतफेड',
@@ -148,6 +148,29 @@ MARATHI_LABELS = {
     'status': 'स्थिती',
     'view_details': 'तपशील पहा',
     'total_pending_cash_payments': 'प्रलंबित रोख भरणा',
+    'total_contribution_by_user': 'एकूण योगदान',
+    'pending_contribution_by_user': 'प्रलंबित योगदान',
+    'total_loans_disbursed_to_user': 'एकूण वितरित कर्ज',
+    'pending_loan_amount_with_interest': 'प्रलंबित कर्ज (व्याजासह)',
+    'users_with_active_loans': 'सक्रिय कर्ज असलेले सदस्य',
+    'users_without_active_loans': 'सक्रिय कर्ज नसलेले सदस्य',
+    'total_amount_paid_by_user_till_date': 'सदस्याने आजपर्यंत भरलेली एकूण रक्कम',
+    'bank_interest_rate': 'बँक व्याज दर',
+    'saving_account_balance': 'बचत खाते शिल्लक',
+    'edit_bank_interest_rate': 'बँक व्याज दर संपादित करा',
+    'update': 'अद्यतनित करा',
+    'bank_interest_rate_updated_success': 'बँक व्याज दर यशस्वीरित्या अद्यतनित केला.',
+    'error_updating_bank_interest_rate': 'बँक व्याज दर अद्यतनित करताना त्रुटी: {error}',
+    'all_users_summary': 'सर्व सदस्यांचा सारांश',
+    'view_all_groups_report': 'सर्व गटांचा अहवाल पहा',
+    'all_groups_report': 'सर्व गटांचा अहवाल',
+    'group_name_report': 'गटाचे नाव',
+    'pending_contributions_report': 'प्रलंबित योगदान',
+    'total_outstanding_loans_report': 'एकूण थकबाकी कर्ज',
+    'total_paid_contributions_report': 'एकूण भरलेले योगदान',
+    'monthly_repayment_status_report': 'मासिक परतफेड स्थिती',
+    'loans_due_this_month': 'या महिन्यात देय कर्जे',
+    'loans_repaid_this_month': 'या महिन्यात परतफेड केलेली कर्जे',
 }
 
 
@@ -166,14 +189,15 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Updated groups table to include group_profit and default_interest_rate
+    # Updated groups table to include group_profit, default_interest_rate, and bank_interest_rate
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS groups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             bank_account_details TEXT,
             group_profit REAL DEFAULT 0.0,
-            default_interest_rate REAL DEFAULT 12.0
+            default_interest_rate REAL DEFAULT 12.0,
+            bank_interest_rate REAL DEFAULT 3.0 -- New field
         )
     ''')
     
@@ -224,8 +248,13 @@ def init_db():
         )
     ''')
     
-    # REMOVED interest_distributions table as per new logic:
-    # 'interest_paid' transactions directly update 'group_profit'.
+    # Add new columns if they don't exist (for existing databases)
+    try:
+        cursor.execute("ALTER TABLE groups ADD COLUMN bank_interest_rate REAL DEFAULT 3.0")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+
     conn.commit()
     conn.close()
 
@@ -303,6 +332,93 @@ def calculate_contribution_status(user_id, group_id, target_date_str=None):
     conn.close()
     return 'received' if count > 0 else 'not_received'
 
+# New helper function to calculate all financial summaries for a given group
+def get_group_financial_summary_reports(group_id, conn):
+    """
+    Calculates and returns a dictionary of financial summaries for a given group.
+    Reuses logic from the index route's report calculation.
+    """
+    group_data = conn.execute('SELECT group_profit, bank_interest_rate FROM groups WHERE id = ?', (group_id,)).fetchone()
+    group_current_profit = group_data['group_profit'] if group_data else 0.0
+    group_bank_interest_rate = group_data['bank_interest_rate'] if group_data and group_data['bank_interest_rate'] is not None else 3.0
+
+    # Calculate overall group reports
+    # Total contributions (paid)
+    total_contributions = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'contribution' AND is_paid = 1",
+        (group_id,)
+    ).fetchone()[0] or 0.0
+    
+    # Total loans disbursed (money flowing out)
+    total_loans_disbursed2 = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'loan_disbursement'",
+        (group_id,)
+    ).fetchone()[0] or 0.0
+    
+    # Total loan repayments (money flowing in)
+    total_loan_repayments = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'loan_repayment'",
+        (group_id,)
+    ).fetchone()[0] or 0.0
+    total_loans_disbursed = total_loans_disbursed2 - total_loan_repayments
+    # Total interest received (from interest_paid transactions)
+    total_interest_received = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'interest_paid'",
+        (group_id,)
+    ).fetchone()[0] or 0.0
+    
+    overall_profit = group_current_profit
+
+    current_year = datetime.now().strftime('%Y')
+    current_month = datetime.now().strftime('%Y-%m')
+
+    # Monthly/Yearly Profit (from interest_paid transactions)
+    monthly_profit = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'interest_paid' AND date LIKE ?",
+        (group_id, f'{current_month}%')
+    ).fetchone()[0] or 0.0
+    yearly_profit = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'interest_paid' AND date LIKE ?",
+        (group_id, f'{current_year}%')
+    ).fetchone()[0] or 0.0
+    
+    # Monthly/Yearly Investment (contributions)
+    monthly_investment = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'contribution' AND is_paid = 1 AND date LIKE ?",
+        (group_id, f'{current_month}%')
+    ).fetchone()[0] or 0.0
+    yearly_investment = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'contribution' AND is_paid = 1 AND date LIKE ?",
+        (group_id, f'{current_year}%')
+    ).fetchone()[0] or 0.0
+    
+    # Total Pending Cash Payments
+    total_pending_cash_payments = conn.execute(
+        "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND is_cash_payment = 1 AND is_paid = 0",
+        (group_id,)
+    ).fetchone()[0] or 0.0
+
+    # Calculate Saving Account Balance
+    # This is total money received by the group minus total money disbursed by the group
+    saving_account_balance = (total_contributions + total_loan_repayments + total_interest_received) - \
+                             (total_loans_disbursed + total_pending_cash_payments) # Deduct pending cash payments as they are not 'in hand' yet
+
+    reports = {
+        'total_contributions': round(total_contributions, 2),
+        'total_loans_disbursed': round(total_loans_disbursed, 2),
+        'total_loan_repayments': round(total_loan_repayments, 2),
+        'total_interest_received': round(total_interest_received, 2),
+        'overall_profit': round(overall_profit, 2),
+        'monthly_profit': round(monthly_profit, 2),
+        'yearly_profit': round(yearly_profit, 2),
+        'monthly_investment': round(monthly_investment, 2),
+        'yearly_investment': round(yearly_investment, 2),
+        'total_pending_cash_payments': round(total_pending_cash_payments, 2),
+        'saving_account_balance': round(saving_account_balance, 2),
+        'bank_interest_rate': group_bank_interest_rate
+    }
+    return reports
+
 # --- Flask Routes ---
 
 @app.route('/')
@@ -311,39 +427,65 @@ def index():
     groups = conn.execute('SELECT * FROM groups').fetchall()
     selected_group_id = request.args.get('group_id', type=int)
 
-    users_data_for_table = []
+    all_users_data = [] # Combined list for all users
     group_current_profit = 0.0 
+    group_bank_interest_rate = 3.0 # Default value
     admin_user_id = get_admin_user_id()
     reports = {}
+    saving_account_balance = 0.0
+    users_in_selected_group = [] # For the "Add New Loan" modal dropdown
 
     if selected_group_id:
-        # Get the group's profit directly from the group table
-        group_data = conn.execute('SELECT group_profit FROM groups WHERE id = ?', (selected_group_id,)).fetchone()
+        group_data = conn.execute('SELECT group_profit, bank_interest_rate FROM groups WHERE id = ?', (selected_group_id,)).fetchone()
         group_current_profit = group_data['group_profit'] if group_data else 0.0
+        group_bank_interest_rate = group_data['bank_interest_rate'] if group_data and group_data['bank_interest_rate'] is not None else 3.0
 
         users = conn.execute('SELECT * FROM users WHERE group_id = ? ORDER BY name ASC', (selected_group_id,)).fetchall()
-        
+        users_in_selected_group = users # Populate for the modal
+
         for user in users:
             user_id = user['id']
             user_name = user['name']
             
-            # 1. Loan Amount Outstanding (sum of outstanding_balance for active loans)
-            # 2. Total Interest Paid (by that user across all their loans)
-            # 3. Remaining Loan Amount (Outstanding + Accrued Interest for active loans)
-            # 4. Monthly Contribution Status
+            # Total Contribution by User (paid contributions)
+            total_contributions_by_user = conn.execute(
+                "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND type = 'contribution' AND is_paid = 1",
+                (user_id,)
+            ).fetchone()[0] or 0.0
+
+            # Pending Contribution by User (cash payments not yet marked as paid)
+            pending_contributions_by_user = conn.execute(
+                "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND type = 'contribution' AND is_cash_payment = 1 AND is_paid = 0",
+                (user_id,)
+            ).fetchone()[0] or 0.0
+
+            # Total Loans Disbursed to User (original amount of all loans for the user)
+            total_loans_disbursed_to_user = conn.execute(
+                "SELECT SUM(original_amount) FROM loans WHERE user_id = ?",
+                (user_id,)
+            ).fetchone()[0] or 0.0
             
-            active_loans = conn.execute(
+            # Total Loan Repayments by User (sum of all loan_repayment transactions by the user)
+            total_loan_repayments_by_user = conn.execute(
+                "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND type = 'loan_repayment' AND is_paid = 1",
+                (user_id,)
+            ).fetchone()[0] or 0.0
+
+            # Remaining Loan Amount (Outstanding + Accrued Interest for active loans)
+            active_loans_raw = conn.execute(
                 "SELECT * FROM loans WHERE user_id = ? AND status = 'active'",
                 (user_id,)
             ).fetchall()
 
-            total_loan_amount_outstanding = 0.0
+            # Convert sqlite3.Row objects to dictionaries for JSON serialization
+            active_loans = []
+            for loan_row in active_loans_raw:
+                active_loans.append(dict(loan_row))
+
+
             remaining_loan_amount_with_accrued_interest = 0.0
             
             for loan in active_loans:
-                total_loan_amount_outstanding += loan['outstanding_balance']
-                
-                # Calculate accrued interest up to today
                 accrued_interest = calculate_interest_due(
                     loan['outstanding_balance'],
                     loan['current_interest_rate'],
@@ -353,7 +495,7 @@ def index():
                 remaining_loan_amount_with_accrued_interest += loan['outstanding_balance'] + accrued_interest
 
             # Total interest paid by this user across ALL their loans (historical included)
-            total_interest_paid = conn.execute(
+            total_interest_paid_by_user = conn.execute(
                 "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND type = 'interest_paid' AND is_paid = 1",
                 (user_id,)
             ).fetchone()[0] or 0.0
@@ -361,91 +503,40 @@ def index():
             # Monthly Contribution Status for the current month
             monthly_contribution_status = calculate_contribution_status(user_id, selected_group_id)
 
-            users_data_for_table.append({
+            # Total Amount Paid by User Till Date (Contributions + Loan Repayments)
+            total_amount_paid_by_user_till_date = total_contributions_by_user + total_loan_repayments_by_user
+
+            user_data = {
                 'user_id': user_id,
                 'user_name': user_name,
                 'user_status': user['status'],
                 'is_admin': user['is_admin'],
-                'total_loan_amount_outstanding': round(total_loan_amount_outstanding, 2),
-                'total_interest_paid': round(total_interest_paid, 2),
+                'total_contributions_by_user': round(total_contributions_by_user, 2),
+                'pending_contributions_by_user': round(pending_contributions_by_user, 2),
+                'total_loans_disbursed_to_user': round(total_loans_disbursed_to_user, 2),
+                'total_interest_paid_by_user': round(total_interest_paid_by_user, 2),
                 'remaining_loan_amount_with_accrued_interest': round(remaining_loan_amount_with_accrued_interest, 2),
                 'monthly_contribution_status': monthly_contribution_status,
+                'total_amount_paid_by_user_till_date': round(total_amount_paid_by_user_till_date, 2),
                 'loans': active_loans # Pass active loans for detailed view if needed
-            })
+            }
+            all_users_data.append(user_data)
         
-        # Calculate overall group reports
-        # Total contributions (paid)
-        total_contributions = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'contribution' AND is_paid = 1",
-            (selected_group_id,)
-        ).fetchone()[0] or 0.0
-        
-        # Total loans disbursed (money flowing out)
-        total_loans_disbursed = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'loan_disbursement'",
-            (selected_group_id,)
-        ).fetchone()[0] or 0.0
-        
-        # Total loan repayments (money flowing in)
-        total_loan_repayments = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'loan_repayment'",
-            (selected_group_id,)
-        ).fetchone()[0] or 0.0
+        # Use the new helper function for group reports
+        reports = get_group_financial_summary_reports(selected_group_id, conn)
 
-        # Total interest received (from interest_paid transactions)
-        total_interest_received = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'interest_paid'",
-            (selected_group_id,)
-        ).fetchone()[0] or 0.0
+        # Update saving_account_balance based on the reports dictionary
+        # This aligns with the previous calculation logic for saving_account_balance
+        saving_account_balance = (reports['total_contributions'] + reports['total_loan_repayments'] + reports['total_interest_received']) - \
+                                 (reports['total_loans_disbursed'] + reports['total_pending_cash_payments'])
+        reports['saving_account_balance'] = round(saving_account_balance, 2)
         
-        overall_profit = group_current_profit
-
-        current_year = datetime.now().strftime('%Y')
-        current_month = datetime.now().strftime('%Y-%m')
-
-        # Monthly/Yearly Profit (from interest_paid transactions)
-        monthly_profit = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'interest_paid' AND date LIKE ?",
-            (selected_group_id, f'{current_month}%')
-        ).fetchone()[0] or 0.0
-        yearly_profit = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'interest_paid' AND date LIKE ?",
-            (selected_group_id, f'{current_year}%')
-        ).fetchone()[0] or 0.0
-        
-        # Monthly/Yearly Investment (contributions)
-        monthly_investment = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'contribution' AND is_paid = 1 AND date LIKE ?",
-            (selected_group_id, f'{current_month}%')
-        ).fetchone()[0] or 0.0
-        yearly_investment = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND type = 'contribution' AND is_paid = 1 AND date LIKE ?",
-            (selected_group_id, f'{current_year}%')
-        ).fetchone()[0] or 0.0
-        
-        # Total Pending Cash Payments
-        total_pending_cash_payments = conn.execute(
-            "SELECT SUM(amount) FROM transactions WHERE group_id = ? AND is_cash_payment = 1 AND is_paid = 0",
-            (selected_group_id,)
-        ).fetchone()[0] or 0.0
-
-        reports = {
-            'total_contributions': round(total_contributions, 2),
-            'total_loans_disbursed': round(total_loans_disbursed, 2),
-            'total_loan_repayments': round(total_loan_repayments, 2),
-            'total_interest_received': round(total_interest_received, 2),
-            'overall_profit': round(overall_profit, 2),
-            'monthly_profit': round(monthly_profit, 2),
-            'yearly_profit': round(yearly_profit, 2),
-            'monthly_investment': round(monthly_investment, 2),
-            'yearly_investment': round(yearly_investment, 2),
-            'total_pending_cash_payments': round(total_pending_cash_payments, 2),
-        }
     conn.close()
 
     return render_template('index.html',
                             groups=groups,
-                            users_data_for_table=users_data_for_table, # NEW: Pass consolidated user data
+                            all_users_data=all_users_data, # Pass all users data
+                            users_in_selected_group=users_in_selected_group, # Pass for Add Loan Modal
                             selected_group_id=selected_group_id,
                             group_current_profit=group_current_profit,
                             reports=reports,
@@ -455,15 +546,35 @@ def index():
                             calculate_interest_due=calculate_interest_due,
                             get_marathi_label=get_marathi_label) # Pass the Marathi label function
 
+@app.route('/all_groups_report')
+def all_groups_report():
+    conn = get_db_connection()
+    groups = conn.execute('SELECT * FROM groups').fetchall()
+    report_data = []
+
+    for group in groups:
+        group_id = group['id']
+        group_name = group['name']
+        
+        # Use the new helper function to get comprehensive financial summaries for each group
+        group_summary_reports = get_group_financial_summary_reports(group_id, conn)
+        
+        report_data.append({
+            'group_name': group_name,
+            'reports': group_summary_reports # Embed the reports dictionary
+        })
+    conn.close()
+    return render_template('all_groups_report.html', all_groups_data=report_data, get_marathi_label=get_marathi_label)
+
 @app.route('/add_group', methods=['POST'])
 def add_group():
     name = request.form['group_name']
     bank_account_details = request.form.get('bank_account_details', '')
     default_interest_rate = float(request.form.get('default_interest_rate', 12.0))
+    bank_interest_rate = float(request.form.get('bank_interest_rate', 3.0)) # New field
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO groups (name, bank_account_details, group_profit, default_interest_rate) VALUES (?, ?, ?, ?)',
-                     (name, bank_account_details, 0.0, default_interest_rate))
+        conn.execute('INSERT INTO groups (name, bank_account_details, group_profit, default_interest_rate, bank_interest_rate) VALUES (?, ?, ?, ?, ?)', (name, bank_account_details, 0.0, default_interest_rate, bank_interest_rate))
         conn.commit()
         flash(get_marathi_label('group_added_success'), 'success')
     except sqlite3.IntegrityError:
@@ -476,6 +587,28 @@ def add_group():
         conn.close()
     return redirect(url_for('index'))
 
+@app.route('/update_bank_interest_rate', methods=['POST'])
+def update_bank_interest_rate():
+    group_id = request.form.get('group_id', type=int)
+    new_bank_rate = request.form.get('new_bank_interest_rate', type=float)
+    if not group_id:
+        flash(get_marathi_label('invalid_group_id'), 'danger')
+        return redirect(url_for('index'))
+    if new_bank_rate is None or not (0 <= new_bank_rate <= 100):
+        flash(get_marathi_label('interest_rate_range_error'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+    conn = get_db_connection()
+    try:
+        conn.execute('UPDATE groups SET bank_interest_rate = ? WHERE id = ?', (new_bank_rate, group_id))
+        conn.commit()
+        flash(get_marathi_label('bank_interest_rate_updated_success'), 'success')
+    except Exception as e:
+        flash(get_marathi_label('error_updating_bank_interest_rate').format(error=e), 'danger')
+        conn.rollback() # Ensure rollback on error
+    finally:
+        conn.close()
+    return redirect(url_for('index', group_id=group_id))
+
 @app.route('/add_user', methods=['POST'])
 def add_user():
     name = request.form['user_name']
@@ -483,8 +616,7 @@ def add_user():
     is_admin = request.form.get('is_admin') == 'on'
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO users (name, group_id, is_admin, status) VALUES (?, ?, ?, ?)',
-                     (name, group_id, is_admin, 'active'))
+        conn.execute('INSERT INTO users (name, group_id, is_admin, status) VALUES (?, ?, ?, ?)', (name, group_id, is_admin, 'active'))
         conn.commit()
         flash(get_marathi_label('user_added_success').format(name=name), 'success')
     except Exception as e:
@@ -495,243 +627,232 @@ def add_user():
 
 @app.route('/toggle_user_status/<int:user_id>', methods=['POST'])
 def toggle_user_status(user_id):
-    if get_admin_user_id() is None or get_admin_user_id() != 1: # Basic admin check
+    if get_admin_user_id() is None or get_admin_user_id() != 1: # Basic admin...
         flash(get_marathi_label('unauthorized_access'), 'danger')
-        user_info = get_user(user_id)
-        return redirect(url_for('index', group_id=user_info['group_id'] if user_info else None))
-        
+        return redirect(url_for('index'))
+
     conn = get_db_connection()
-    user = conn.execute('SELECT status, group_id FROM users WHERE id = ?', (user_id,)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     if user:
         new_status = 'inactive' if user['status'] == 'active' else 'active'
         conn.execute('UPDATE users SET status = ? WHERE id = ?', (new_status, user_id))
         conn.commit()
         flash(get_marathi_label('user_status_changed').format(status=new_status), 'success')
+        group_id_to_redirect = user['group_id']
     else:
         flash(get_marathi_label('user_not_found'), 'danger')
+        group_id_to_redirect = None # Or a default group ID if possible
     conn.close()
-    return redirect(url_for('index', group_id=user['group_id'] if user else None))
+    return redirect(url_for('index', group_id=group_id_to_redirect))
 
-@app.route('/add_monthly_contribution/<int:user_id>', methods=['POST'])
-def add_monthly_contribution(user_id):
+@app.route('/add_contribution', methods=['POST'])
+def add_contribution():
+    user_id = request.form['user_id']
+    group_id = request.form['group_id']
     amount = float(request.form['amount'])
-    date_str = datetime.now().strftime('%Y-%m-%d')
     is_cash_payment = request.form.get('is_cash_payment') == 'on'
-    is_paid = 0 if is_cash_payment else 1
-
-    user = get_user(user_id)
-    if not user:
-        flash(get_marathi_label('user_not_found'), 'danger')
-        return redirect(url_for('index'))
     
+    # Determine is_paid status based on is_cash_payment
+    is_paid = 0 if is_cash_payment else 1
+    status_message_key = 'pending_cash_payment' if is_cash_payment else 'paid_upi_bank'
+
     conn = get_db_connection()
     try:
-        conn.execute(
-            'INSERT INTO transactions (user_id, group_id, type, amount, date, description, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            (user_id, user['group_id'], 'contribution', amount, date_str, 'Monthly Contribution', is_cash_payment, is_paid)
-        )
+        conn.execute('INSERT INTO transactions (user_id, group_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    (user_id, group_id, 'contribution', amount, datetime.now().strftime('%Y-%m-%d'), is_cash_payment, is_paid))
         conn.commit()
-        status_msg = get_marathi_label('pending_cash_payment') if is_cash_payment else get_marathi_label('paid_upi_bank')
-        flash(get_marathi_label('contribution_added_success').format(amount=amount, user_name=user["name"], status=status_msg), 'success')
+        user = get_user(user_id)
+        flash(get_marathi_label('contribution_added_success').format(amount=amount, user_name=user['name'], status=get_marathi_label(status_message_key)), 'success')
     except Exception as e:
         flash(get_marathi_label('error_adding_contribution').format(error=e), 'danger')
+        conn.rollback()
     finally:
         conn.close()
-    return redirect(url_for('index', group_id=user['group_id']))
+    return redirect(url_for('index', group_id=group_id))
 
-@app.route('/mark_payment_paid/<int:transaction_id>', methods=['POST'])
-def mark_payment_paid(transaction_id):
-    if get_admin_user_id() is None or get_admin_user_id() != 1: # Basic admin check
-        flash(get_marathi_label('unauthorized_access'), 'danger')
-        return redirect(url_for('index'))
-        
+@app.route('/mark_cash_payment_paid/<int:transaction_id>', methods=['POST'])
+def mark_cash_payment_paid(transaction_id):
     conn = get_db_connection()
-    transaction = conn.execute('SELECT user_id, group_id, is_paid FROM transactions WHERE id = ?', (transaction_id,)).fetchone()
-    if transaction and transaction['is_paid'] == 0:
-        conn.execute('UPDATE transactions SET is_paid = 1 WHERE id = ?', (transaction_id,))
+    group_id_to_redirect = request.form.get('group_id', type=int) # Get group_id from form
+    try:
+        # Check if the transaction exists and is a pending cash payment
+        transaction = conn.execute("SELECT * FROM transactions WHERE id = ? AND is_cash_payment = 1 AND is_paid = 0", (transaction_id,)).fetchone()
+        
+        if not transaction:
+            flash(get_marathi_label('transaction_not_found'), 'danger')
+            return redirect(url_for('index', group_id=group_id_to_redirect))
+        
+        # Mark as paid
+        conn.execute("UPDATE transactions SET is_paid = 1 WHERE id = ?", (transaction_id,))
         conn.commit()
         flash(get_marathi_label('cash_payment_marked_paid'), 'success')
-    elif transaction and transaction['is_paid'] == 1:
-        flash(get_marathi_label('payment_already_paid'), 'info')
-    else:
-        flash(get_marathi_label('transaction_not_found'), 'danger')
-    conn.close()
-    return redirect(url_for('index', group_id=transaction['group_id'] if transaction else None))
 
-@app.route('/add_loan_manual', methods=['POST'])
-def add_loan_manual():
+    except Exception as e:
+        flash(f"Error marking payment as paid: {e}", 'danger')
+        conn.rollback()
+    finally:
+        conn.close()
+    return redirect(url_for('index', group_id=group_id_to_redirect))
+
+@app.route('/add_loan', methods=['POST'])
+def add_loan():
+    user_id = request.form.get('user_id', type=int)
+    group_id = request.form.get('group_id', type=int)
+    loan_amount = float(request.form.get('loan_amount'))
+    loan_issue_date = request.form.get('loan_issue_date')
+    loan_interest_rate = float(request.form.get('loan_interest_rate')) # This is the annual rate
+
+    if not user_id or not group_id:
+        flash(get_marathi_label('invalid_user_or_group'), 'danger')
+        return redirect(url_for('index'))
+
+    if loan_amount <= 0:
+        flash(get_marathi_label('loan_amount_positive_error'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+
+    if not (0 <= loan_interest_rate <= 100):
+        flash(get_marathi_label('interest_rate_range_error'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+
+    conn = get_db_connection()
     try:
-        user_id = int(request.form['user_id'])
-        group_id = int(request.form['group_id'])
-        amount = float(request.form['loan_amount'])
-        issue_date_str = request.form['loan_issue_date']
-        interest_rate = float(request.form['loan_interest_rate'])
-
-        user = get_user(user_id)
-        group = get_group(group_id)
-
-        if not user or user['group_id'] != group_id:
-            flash(get_marathi_label('invalid_user_or_group'), 'danger')
-            return redirect(url_for('index', group_id=group_id))
-        if not group:
-            flash(get_marathi_label('invalid_group_id'), 'danger')
-            return redirect(url_for('index'))
-        if amount <= 0:
-            flash(get_marathi_label('loan_amount_positive_error'), 'danger')
-            return redirect(url_for('index', group_id=group_id))
-        if not (0 < interest_rate <= 100):
-            flash(get_marathi_label('interest_rate_range_error'), 'danger')
-            return redirect(url_for('index', group_id=group_id))
-
-        conn = get_db_connection()
+        # 1. Record the loan in the loans table
         cursor = conn.cursor()
-
-        # Insert into loans table
-        cursor.execute(
-            '''INSERT INTO loans (user_id, group_id, original_amount, outstanding_balance, current_interest_rate, issue_date, last_interest_calc_date, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-            (user_id, group_id, amount, amount, interest_rate, issue_date_str, issue_date_str, 'active')
-        )
+        cursor.execute('INSERT INTO loans (user_id, group_id, original_amount, outstanding_balance, current_interest_rate, issue_date, last_interest_calc_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    (user_id, group_id, loan_amount, loan_amount, loan_interest_rate, loan_issue_date, loan_issue_date, 'active'))
         loan_id = cursor.lastrowid # Get the ID of the newly inserted loan
 
-        # Record as a loan_disbursement transaction
-        conn.execute(
-            'INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            (user_id, group_id, loan_id, 'loan_disbursement', amount, issue_date_str, f'Loan Disbursed to {user["name"]} (Loan ID: {loan_id})')
-        )
+        # 2. Record the loan disbursement as a transaction
+        user = get_user(user_id) # Need user name for flash message
+        conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    (user_id, group_id, loan_id, 'loan_disbursement', loan_amount, loan_issue_date, f'Loan disbursement for {user["name"]}', 0, 1))
+        
         conn.commit()
-        flash(get_marathi_label('loan_disbursed_success').format(loan_id=loan_id, amount=amount, user_name=user["name"], rate=interest_rate), 'success')
-    except ValueError as ve:
-        flash(get_marathi_label('input_error').format(error=ve), 'danger')
+        flash(get_marathi_label('loan_disbursed_success').format(loan_id=loan_id, amount=loan_amount, user_name=user['name'], rate=loan_interest_rate), 'success')
     except Exception as e:
         flash(get_marathi_label('error_adding_loan').format(error=e), 'danger')
-        conn.rollback() # Rollback if any error occurs
+        conn.rollback()
     finally:
         conn.close()
     return redirect(url_for('index', group_id=group_id))
 
 @app.route('/change_loan_interest_rate', methods=['POST'])
 def change_loan_interest_rate():
+    loan_id = request.form.get('loan_id', type=int)
+    new_interest_rate = float(request.form.get('new_interest_rate'))
+    group_id = request.form.get('group_id', type=int) # For redirect
+
+    if not loan_id:
+        flash(get_marathi_label('loan_id_missing'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+
+    if not (0 <= new_interest_rate <= 100):
+        flash(get_marathi_label('interest_rate_range_error'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+
+    conn = get_db_connection()
     try:
-        loan_id = int(request.form['loan_id'])
-        new_rate = float(request.form['new_interest_rate'])
-        
-        if not (0 < new_rate <= 100):
-            flash(get_marathi_label('interest_rate_range_error'), 'danger')
-            return redirect(url_for('index'))
-
-        conn = get_db_connection()
-        loan = conn.execute('SELECT * FROM loans WHERE id = ?', (loan_id,)).fetchone()
-
+        loan = conn.execute("SELECT * FROM loans WHERE id = ?", (loan_id,)).fetchone()
         if not loan:
             flash(get_marathi_label('loan_not_found').format(loan_id=loan_id), 'danger')
-            conn.close()
-            return redirect(url_for('index'))
+            return redirect(url_for('index', group_id=group_id))
 
         old_rate = loan['current_interest_rate']
-        conn.execute('UPDATE loans SET current_interest_rate = ? WHERE id = ?', (new_rate, loan_id))
+        conn.execute("UPDATE loans SET current_interest_rate = ? WHERE id = ?", (new_interest_rate, loan_id))
         conn.commit()
-        flash(get_marathi_label('loan_rate_changed_success').format(loan_id=loan_id, old_rate=old_rate, new_rate=new_rate), 'success')
-    except ValueError as ve:
-        flash(get_marathi_label('input_error').format(error=ve), 'danger')
+        flash(get_marathi_label('loan_rate_changed_success').format(loan_id=loan_id, old_rate=old_rate, new_rate=new_interest_rate), 'success')
     except Exception as e:
         flash(get_marathi_label('error_changing_loan_rate').format(error=e), 'danger')
         conn.rollback()
     finally:
         conn.close()
-    return redirect(url_for('index', group_id=loan['group_id'] if loan else None))
+    return redirect(url_for('index', group_id=group_id))
 
 
-@app.route('/repay_loan/<int:loan_id>', methods=['POST'])
-def repay_loan(loan_id):
-    repayment_amount = float(request.form['repayment_amount'])
-    repayment_date = datetime.now().strftime('%Y-%m-%d')
-    conn = get_db_connection()
-    loan = conn.execute('SELECT * FROM loans WHERE id = ?', (loan_id,)).fetchone()
+@app.route('/repay_loan', methods=['POST'])
+def repay_loan():
+    loan_id = request.form.get('loan_id', type=int)
+    repayment_amount = float(request.form.get('repayment_amount'))
+    group_id = request.form.get('group_id', type=int) # For redirect
 
-    if not loan:
-        flash(get_marathi_label('loan_not_found').format(loan_id=loan_id), 'danger')
-        conn.close()
-        return redirect(url_for('index'))
-    if loan['status'] == 'paid_off':
-        flash(get_marathi_label('loan_already_paid_off'), 'info')
-        conn.close()
-        return redirect(url_for('index', group_id=loan['group_id']))
+    if not loan_id:
+        flash(get_marathi_label('loan_id_missing'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+
     if repayment_amount <= 0:
         flash(get_marathi_label('repayment_amount_positive_error'), 'danger')
-        conn.close()
-        return redirect(url_for('index', group_id=loan['group_id']))
+        return redirect(url_for('index', group_id=group_id))
 
-    outstanding_balance_at_last_calc_date = loan['outstanding_balance']
-    last_calc_date_str = loan['last_interest_calc_date']
-    current_annual_rate = loan['current_interest_rate']
-
-    # Calculate interest accrued since last_interest_calc_date up to today
-    accrued_interest_since_last_calc = calculate_interest_due(
-        outstanding_balance_at_last_calc_date, 
-        current_annual_rate, 
-        last_calc_date_str, 
-        repayment_date
-    )
-
-    principal_repayment_amount = 0.0
-    interest_paid_amount = 0.0
-
-    if repayment_amount >= accrued_interest_since_last_calc:
-        interest_paid_amount = accrued_interest_since_last_calc
-        principal_repayment_amount = repayment_amount - interest_paid_amount
-    else:
-        # If repayment is less than accrued interest, the entire repayment goes to interest
-        interest_paid_amount = repayment_amount
-        principal_repayment_amount = 0.0
-
-    new_outstanding_balance = loan['outstanding_balance'] - principal_repayment_amount
-
-    # Ensure outstanding balance doesn't go negative
-    if new_outstanding_balance < 0:
-        actual_principal_repaid = loan['outstanding_balance'] # Repay only the remaining principal
-        interest_paid_amount = max(0, repayment_amount - actual_principal_repaid) # Remaining is interest
-        new_outstanding_balance = 0.0
-    else:
-        actual_principal_repaid = principal_repayment_amount
-    
+    conn = get_db_connection()
     try:
-        # Update loan outstanding balance and last interest calculation date
-        conn.execute(
-            'UPDATE loans SET outstanding_balance = ?, last_interest_calc_date = ? WHERE id = ?',
-            (new_outstanding_balance, repayment_date, loan_id)
-        )
-        
-        # Record the full repayment as a loan_repayment transaction
-        conn.execute(
-            'INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            (loan['user_id'], loan['group_id'], loan_id, 'loan_repayment', repayment_amount, repayment_date,
-             f'Loan Repayment for Loan ID {loan_id} (Principal: ₹{actual_principal_repaid:.2f}, Interest: ₹{interest_paid_amount:.2f})')
-        )
-        
-        # Record the interest portion as an 'interest_paid' transaction and add to group profit
-        if interest_paid_amount > 0:
-            conn.execute(
-                'INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                (loan['user_id'], loan['group_id'], loan_id, 'interest_paid', interest_paid_amount, repayment_date,
-                 f'Interest paid by {get_user(loan["user_id"])["name"]} for Loan ID {loan_id}')
-            )
-            # Update group profit directly
-            conn.execute(
-                'UPDATE groups SET group_profit = group_profit + ? WHERE id = ?',
-                (interest_paid_amount, loan['group_id'])
-            )
+        loan = conn.execute("SELECT * FROM loans WHERE id = ?", (loan_id,)).fetchone()
+        if not loan or loan['group_id'] != group_id:
+            flash(get_marathi_label('loan_not_found').format(loan_id=loan_id), 'danger')
+            return redirect(url_for('index', group_id=group_id))
 
-        # Update loan status if fully paid off
+        if loan['status'] == 'paid_off':
+            flash(get_marathi_label('loan_already_paid_off'), 'info')
+            return redirect(url_for('index', group_id=group_id))
+
+        outstanding_balance = loan['outstanding_balance']
+        current_interest_rate = loan['current_interest_rate']
+        last_interest_calc_date_str = loan['last_interest_calc_date']
+        issue_date_str = loan['issue_date']
+        user_id = loan['user_id']
+
+        # Calculate accrued interest since last interest calculation date or issue date if no previous payment
+        interest_accrued_today = calculate_interest_due(
+            outstanding_balance,
+            current_interest_rate,
+            last_interest_calc_date_str,
+            datetime.now().strftime('%Y-%m-%d')
+        )
+        
+        # How much of the repayment goes to interest and how much to principal
+        interest_paid_amount = min(repayment_amount, interest_accrued_today)
+        principal_repaid_amount = repayment_amount - interest_paid_amount
+
+        new_outstanding_balance = outstanding_balance - principal_repaid_amount
+
+        # DEBUG: Print loan repayment details before update
+        print(f"DEBUG REPAY: Loan ID: {loan_id}, Original Outstanding: {outstanding_balance}, "
+              f"Repayment Amount: {repayment_amount}, Interest Accrued: {interest_accrued_today}, "
+              f"Interest Paid: {interest_paid_amount}, Principal Repaid: {principal_repaid_amount}, "
+              f"New Outstanding: {new_outstanding_balance}")
+
+        # Update loan outstanding balance and last interest calculation date
+        conn.execute("UPDATE loans SET outstanding_balance = ?, last_interest_calc_date = ? WHERE id = ?",
+                    (new_outstanding_balance, datetime.now().strftime('%Y-%m-%d'), loan_id))
+
+        # Record loan repayment transaction
+        conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    (user_id, group_id, loan_id, 'loan_repayment', repayment_amount, datetime.now().strftime('%Y-%m-%d'), f'Loan repayment for loan ID {loan_id}', 0, 1))
+
+        # Record interest paid transaction if any interest was paid
+        if interest_paid_amount > 0:
+            conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        (user_id, group_id, loan_id, 'interest_paid', interest_paid_amount, datetime.now().strftime('%Y-%m-%d'), f'Interest paid for loan ID {loan_id}', 0, 1))
+            
+            # Update group_profit with the received interest
+            conn.execute("UPDATE groups SET group_profit = group_profit + ? WHERE id = ?", (interest_paid_amount, group_id))
+
+        # If loan is fully paid off
         if new_outstanding_balance <= 0:
-            conn.execute('UPDATE loans SET status = "paid_off" WHERE id = ?', (loan_id,))
-            flash(get_marathi_label('loan_fully_paid_off').format(loan_id=loan_id), 'info')
+            conn.execute("UPDATE loans SET status = 'paid_off', outstanding_balance = 0 WHERE id = ?", (loan_id,))
+            flash(get_marathi_label('loan_fully_paid_off').format(loan_id=loan_id), 'success')
         
         conn.commit()
+
+        # DEBUG: Verify updated loan status and outstanding balance
+        updated_loan = conn.execute("SELECT outstanding_balance, status FROM loans WHERE id = ?", (loan_id,)).fetchone()
+        print(f"DEBUG REPAY: After Commit - Loan ID: {loan_id}, DB Outstanding: {updated_loan['outstanding_balance']}, DB Status: {updated_loan['status']}")
+
+
         flash(get_marathi_label('loan_repayment_processed_success').format(
-            repayment_amount=repayment_amount, loan_id=loan_id, 
-            actual_principal_repaid=actual_principal_repaid, 
-            interest_paid_amount=interest_paid_amount, 
+            repayment_amount=repayment_amount,
+            loan_id=loan_id,
+            actual_principal_repaid=principal_repaid_amount,
+            interest_paid_amount=interest_paid_amount,
             new_outstanding_balance=new_outstanding_balance
         ), 'success')
 
@@ -740,465 +861,575 @@ def repay_loan(loan_id):
         conn.rollback()
     finally:
         conn.close()
-    return redirect(url_for('index', group_id=loan['group_id']))
+    return redirect(url_for('index', group_id=group_id))
 
 
-@app.route('/bulk_upload_transactions', methods=['GET', 'POST'])
-def bulk_upload_transactions():
-    selected_group_id = request.args.get('group_id', type=int)
-    if not selected_group_id:
-        flash(get_marathi_label('please_select_group'), 'danger')
-        return redirect(url_for('index'))
+# --- Bulk Upload CSV Functions ---
 
-    if request.method == 'POST':
-        if 'csv_file' not in request.files:
-            flash(get_marathi_label('no_file_part'), 'danger')
-            return redirect(request.url)
-        file = request.files['csv_file']
-        if file.filename == '':
-            flash(get_marathi_label('no_selected_file'), 'danger')
-            return redirect(request.url)
-        if not file.filename.endswith('.csv'):
-            flash(get_marathi_label('invalid_file_type'), 'danger')
-            return redirect(request.url)
-        
-        stream = io.TextIOWrapper(file, encoding='utf-8')
-        csv_reader = csv.DictReader(stream)
-        
-        # List to store parsed rows for potential processing
-        transactions_to_process = []
-        # For duplicate detection: (user_id, type, date) -> count
-        transaction_occurrence = {} 
-        # For displaying duplicates to user: (user_id, type, date) -> [list of original rows]
-        duplicates_found = {} 
-
-        conn = get_db_connection()
-        for row_idx, row in enumerate(csv_reader):
-            row_num = row_idx + 1 # For clearer error messages
-            user_name = row.get('user_name', '').strip()
-            transaction_type = row.get('type', '').strip().lower()
-            amount_str = row.get('amount', '').strip()
-            date_str = row.get('date', datetime.now().strftime('%Y-%m-%d')).strip()
-            is_cash = row.get('is_cash_payment', '0').strip().lower() in ['1', 'true', 'yes']
-            is_paid_status = row.get('is_paid', '1').strip().lower() in ['1', 'true', 'yes']
-            loan_id_str = row.get('loan_id', '').strip()
-            new_loan_interest_rate_str = row.get('new_loan_interest_rate', '').strip()
-
-            try:
-                user = conn.execute(
-                    'SELECT id, group_id FROM users WHERE name = ? AND group_id = ?',
-                    (user_name, selected_group_id)
-                ).fetchone()
-                if not user:
-                    flash(f"{get_marathi_label('error_processing_row').format(row_num=row_num)}: {get_marathi_label('user_not_found_in_group').format(user_name=user_name, group_name=get_group(selected_group_id)['name'])}", 'warning')
-                    continue # Skip to next row
-                
-                user_id = user['id']
-                group_id = user['group_id']
-                amount = float(amount_str)
-                loan_id = int(loan_id_str) if loan_id_str else None
-                new_loan_interest_rate = float(new_loan_interest_rate_str) if new_loan_interest_rate_str else None
-
-                # Basic validation for transaction type
-                valid_types = ['contribution', 'loan_disbursement', 'loan_repayment', 'interest_paid']
-                if transaction_type not in valid_types:
-                    flash(f"{get_marathi_label('error_processing_row').format(row_num=row_num)}: {get_marathi_label('unknown_transaction_type').format(transaction_type=transaction_type)}", 'warning')
-                    continue
-
-                # Prepare row data, including original_row for confirmation
-                row_data = {
-                    'row_num': row_num,
-                    'user_id': user_id,
-                    'user_name': user_name,
-                    'group_id': group_id,
-                    'type': transaction_type,
-                    'amount': amount,
-                    'date': date_str,
-                    'is_cash_payment': is_cash,
-                    'is_paid': is_paid_status,
-                    'loan_id': loan_id,
-                    'new_loan_interest_rate': new_loan_interest_rate,
-                    'original_row_data': dict(row) # Keep original CSV row for display
-                }
-                transactions_to_process.append(row_data)
-
-                # Duplicate detection for (user, type, date) within THIS upload file
-                # A user making multiple contributions on the same day, or multiple repayments
-                # It's important to distinguish between separate repayments for different loans vs same loan.
-                # For simplicity in pop-up, I'll flag (user_id, type, date, loan_id if available)
-                
-                # For loan repayments/interest paid, consider loan_id as part of uniqueness
-                unique_key_components = [user_id, transaction_type, date_str]
-                if transaction_type in ['loan_repayment', 'interest_paid'] and loan_id:
-                    unique_key_components.append(loan_id)
-                elif transaction_type == 'loan_disbursement': # A user can only get one loan per entry in CSV
-                     unique_key_components.append(f"new_loan_{datetime.now().microsecond}") # Pseudo-unique for new loan
-                
-                unique_key = tuple(unique_key_components)
-
-                if unique_key in transaction_occurrence:
-                    if unique_key not in duplicates_found:
-                        duplicates_found[unique_key] = [transaction_occurrence[unique_key]] # Add first occurrence
-                    duplicates_found[unique_key].append(row_data)
-                else:
-                    transaction_occurrence[unique_key] = row_data # Store the first occurrence
-            
-            except ValueError as ve:
-                flash(f"{get_marathi_label('error_processing_row').format(row_num=row_num)}: {get_marathi_label('data_conversion_error').format(error=ve)} - Data: {dict(row)}", 'danger')
-                continue
-            except Exception as e:
-                flash(f"{get_marathi_label('error_processing_row').format(row_num=row_num)}: {get_marathi_label('error_processing_row').format(error=e)} - Data: {dict(row)}", 'danger')
-                continue
-        
-        conn.close() # Close connection used for preliminary checks
-
-        if duplicates_found:
-            # Store duplicates and all transactions in session for confirmation step
-            session['transactions_to_process'] = transactions_to_process
-            session['duplicates_found'] = list(duplicates_found.values()) # Convert dict_values to list
-            session['selected_group_id_for_upload'] = selected_group_id
-            return redirect(url_for('confirm_duplicate_transactions'))
-        else:
-            # No duplicates, proceed directly to processing all transactions
-            return process_bulk_transactions(transactions_to_process, selected_group_id, confirm_accept=True)
-            
-    return render_template('bulk_upload_transactions.html', 
-                           selected_group_id=selected_group_id,
-                           get_marathi_label=get_marathi_label,
-                           get_group=get_group)
-
-@app.route('/confirm_duplicate_transactions', methods=['GET', 'POST'])
-def confirm_duplicate_transactions():
-    if 'duplicates_found' not in session or 'transactions_to_process' not in session or 'selected_group_id_for_upload' not in session:
-        flash(get_marathi_label('unauthorized_access'), 'danger')
-        return redirect(url_for('index'))
-
-    duplicates = session['duplicates_found']
-    selected_group_id = session['selected_group_id_for_upload']
+@app.route('/download_sample_transactions_csv')
+def download_sample_transactions_csv():
+    # Sample CSV content for transactions
+    sample_csv_content = (
+        "user_name,type,amount,date,is_cash_payment,is_paid,loan_id,new_loan_interest_rate\n"
+        "सदस्य_अ,contribution,500,2024-05-15,0,1,\n"
+        "सदस्य_ब,loan_disbursement,10000,2024-05-16,,24.0,\n"
+        "सदस्य_क,loan_repayment,1200,2024-05-17,0,1,101\n" # Assuming loan_id 101 exists for सदस्य_क
+    )
     
-    # Get group name for display
-    group = get_group(selected_group_id)
-    group_name = group['name'] if group else 'Unknown Group'
-
-    if request.method == 'POST':
-        action = request.form.get('action')
-        transactions_to_process = session.pop('transactions_to_process', [])
-        selected_group_id = session.pop('selected_group_id_for_upload', None)
-        session.pop('duplicates_found', None) # Clear duplicates from session
-
-        if action == 'accept':
-            flash(get_marathi_label('processing_duplicates_accepted'), 'info')
-            return process_bulk_transactions(transactions_to_process, selected_group_id, confirm_accept=True)
-        elif action == 'reject':
-            flash(get_marathi_label('duplicate_transactions_rejected'), 'warning')
-            return redirect(url_for('index', group_id=selected_group_id))
-        
-    return render_template('confirm_duplicate_transactions.html', 
-                           duplicates=duplicates,
-                           selected_group_id=selected_group_id,
-                           group_name=group_name,
-                           get_marathi_label=get_marathi_label)
-
-def process_bulk_transactions(transactions_data, selected_group_id, confirm_accept=False):
-    """
-    Internal function to process bulk transactions after (optional) duplicate confirmation.
-    """
-    processed_count = 0
-    error_count = 0
-    messages = []
-    conn = get_db_connection()
-    try:
-        for row_data in transactions_data:
-            user_id = row_data['user_id']
-            user_name = row_data['user_name']
-            group_id = row_data['group_id']
-            transaction_type = row_data['type']
-            amount = row_data['amount']
-            date_str = row_data['date']
-            is_cash = row_data['is_cash_payment']
-            is_paid_status = row_data['is_paid']
-            loan_id = row_data['loan_id']
-            new_loan_interest_rate = row_data['new_loan_interest_rate']
-            row_num = row_data['row_num']
-
-            try:
-                if transaction_type == 'contribution':
-                    conn.execute(
-                        'INSERT INTO transactions (user_id, group_id, type, amount, date, description, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                        (user_id, group_id, 'contribution', amount, date_str, 'Bulk Uploaded Contribution', is_cash, is_paid_status)
-                    )
-                    messages.append(f"पंक्ती {row_num}: ₹{amount} चे योगदान {user_name} साठी प्रक्रिया केले.")
-                    processed_count += 1
-
-                elif transaction_type == 'loan_repayment':
-                    if not loan_id:
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('loan_id_missing').format(user_name=user_name)}")
-                        error_count += 1
-                        continue
-                    
-                    loan = conn.execute('SELECT * FROM loans WHERE id = ? AND user_id = ? AND group_id = ?', (loan_id, user_id, group_id)).fetchone()
-                    if not loan:
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('loan_not_found').format(loan_id=loan_id, user_name=user_name)}")
-                        error_count += 1
-                        continue
-                    if loan['status'] == 'paid_off':
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('loan_already_paid_off').format(loan_id=loan_id)}")
-                        error_count += 1
-                        continue
-
-                    outstanding_balance_at_last_calc_date = loan['outstanding_balance']
-                    last_calc_date_str = loan['last_interest_calc_date']
-                    current_annual_rate = loan['current_interest_rate']
-                    
-                    accrued_interest_since_last_calc = calculate_interest_due(
-                        outstanding_balance_at_last_calc_date, 
-                        current_annual_rate, 
-                        last_calc_date_str, 
-                        date_str
-                    )
-
-                    principal_repayment_amount = 0.0
-                    interest_paid_amount = 0.0
-
-                    if amount >= accrued_interest_since_last_calc:
-                        interest_paid_amount = accrued_interest_since_last_calc
-                        principal_repayment_amount = amount - interest_paid_amount
-                    else:
-                        interest_paid_amount = amount
-                        principal_repayment_amount = 0.0
-
-                    new_outstanding_balance = loan['outstanding_balance'] - principal_repayment_amount
-
-                    if new_outstanding_balance < 0:
-                        actual_principal_repaid = loan['outstanding_balance']
-                        interest_paid_amount = max(0, amount - actual_principal_repaid)
-                        new_outstanding_balance = 0.0
-                    else:
-                        actual_principal_repaid = principal_repayment_amount
-
-                    conn.execute(
-                        'UPDATE loans SET outstanding_balance = ?, last_interest_calc_date = ? WHERE id = ?',
-                        (new_outstanding_balance, date_str, loan_id)
-                    )
-                    conn.execute(
-                        'INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        (user_id, group_id, loan_id, 'loan_repayment', amount, date_str,
-                         f'Bulk Uploaded Loan Repayment for Loan ID {loan_id} (Principal: ₹{actual_principal_repaid:.2f}, Interest: ₹{interest_paid_amount:.2f})')
-                    )
-                    
-                    if interest_paid_amount > 0:
-                        conn.execute(
-                            'INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                            (user_id, group_id, loan_id, 'interest_paid', interest_paid_amount, date_str,
-                             f'Bulk Uploaded Interest paid by {user_name} for Loan ID {loan_id}')
-                        )
-                        conn.execute(
-                            'UPDATE groups SET group_profit = group_profit + ? WHERE id = ?',
-                            (interest_paid_amount, group_id)
-                        )
-
-                    if new_outstanding_balance <= 0:
-                        conn.execute('UPDATE loans SET status = "paid_off" WHERE id = ?', (loan_id,))
-                        messages.append(f"पंक्ती {row_num}: कर्ज आयडी {loan_id} पूर्णपणे फेडले गेले.")
-                    
-                    messages.append(f"पंक्ती {row_num}: कर्ज परतफेड ₹{amount} {user_name} साठी (कर्ज आयडी {loan_id}) प्रक्रिया केली.")
-                    processed_count += 1
-
-                elif transaction_type == 'interest_paid':
-                    if not loan_id:
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('loan_id_missing').format(user_name=user_name)}")
-                        error_count += 1
-                        continue
-                    
-                    loan = conn.execute('SELECT id, user_id, group_id FROM loans WHERE id = ? AND user_id = ? AND group_id = ?', (loan_id, user_id, group_id)).fetchone()
-                    if not loan:
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('loan_not_found').format(loan_id=loan_id, user_name=user_name)}")
-                        error_count += 1
-                        continue
-                    
-                    conn.execute(
-                        'INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        (user_id, group_id, loan_id, 'interest_paid', amount, date_str, f'Bulk Uploaded Interest paid for Loan ID {loan_id}')
-                    )
-                    conn.execute(
-                        'UPDATE groups SET group_profit = group_profit + ? WHERE id = ?',
-                        (amount, group_id)
-                    )
-                    messages.append(f"पंक्ती {row_num}: ₹{amount} व्याज {user_name} साठी (कर्ज आयडी {loan_id}) प्रक्रिया केले. गट नफ्यात जोडले.")
-                    processed_count += 1
-
-                elif transaction_type == 'loan_disbursement':
-                    if loan_id: # For new loans, loan_id should not be provided in CSV
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('loan_id_not_for_new_loan').format(user_name=user_name)}")
-                        error_count += 1
-                        continue
-
-                    group = get_group(group_id)
-                    loan_interest_rate = new_loan_interest_rate if new_loan_interest_rate is not None else group['default_interest_rate']
-                    
-                    if not (0 < loan_interest_rate <= 100):
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('invalid_interest_rate').format(rate=loan_interest_rate, user_name=user_name)}")
-                        error_count += 1
-                        continue
-
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        '''INSERT INTO loans (user_id, group_id, original_amount, outstanding_balance, current_interest_rate, issue_date, last_interest_calc_date, status)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                        (user_id, group_id, amount, amount, loan_interest_rate, date_str, date_str, 'active')
-                    )
-                    new_loan_id = cursor.lastrowid
-
-                    conn.execute(
-                        'INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        (user_id, group_id, new_loan_id, 'loan_disbursement', amount, date_str, f'Bulk Uploaded Loan Disbursed to {user_name} (Loan ID: {new_loan_id})')
-                    )
-                    messages.append(f"पंक्ती {row_num}: {new_loan_id} कर्ज (ID: {new_loan_id}) ₹{amount} चे {user_name} ला {loan_interest_rate}% वार्षिक व्याजाने वितरित केले.")
-                    processed_count += 1
-
-            except ValueError as ve:
-                messages.append(f"पंक्ती {row_num}: {get_marathi_label('data_conversion_error').format(error=ve)}")
-                error_count += 1
-            except Exception as row_e:
-                messages.append(f"पंक्ती {row_num}: {get_marathi_label('error_processing_row').format(error=row_e)}")
-                error_count += 1
-        
-        conn.commit()
-        flash(get_marathi_label('upload_complete').format(processed_count=processed_count, error_count=error_count), 'success')
-        for msg in messages:
-            flash(msg, 'info')
-    except Exception as e:
-        conn.rollback()
-        flash(get_marathi_label('upload_error').format(error=e), 'danger')
-    finally:
-        conn.close()
-    return redirect(url_for('index', group_id=selected_group_id))
-
-
-@app.route('/bulk_upload_users', methods=['GET', 'POST'])
-def bulk_upload_users():
-    selected_group_id = request.args.get('group_id', type=int)
-    if not selected_group_id:
-        flash(get_marathi_label('please_select_group'), 'danger')
-        return redirect(url_for('index'))
-
-    if request.method == 'POST':
-        if 'csv_file' not in request.files:
-            flash(get_marathi_label('no_file_part'), 'danger')
-            return redirect(request.url)
-        file = request.files['csv_file']
-        if file.filename == '':
-            flash(get_marathi_label('no_selected_file'), 'danger')
-            return redirect(request.url)
-        if file and file.filename.endswith('.csv'):
-            stream = io.TextIOWrapper(file, encoding='utf-8')
-            csv_reader = csv.DictReader(stream)
-            processed_count = 0
-            error_count = 0
-            messages = []
-
-            conn = get_db_connection()
-            try:
-                for row_idx, row in enumerate(csv_reader):
-                    row_num = row_idx + 1
-                    try:
-                        user_name = row.get('user_name', '').strip()
-                        group_identifier = row.get('group_id') or row.get('group_name', '').strip()
-                        is_admin = row.get('is_admin', '0').lower() in ['1', 'true', 'yes']
-                        status = row.get('status', 'active').strip()
-
-                        if not user_name or not group_identifier:
-                            messages.append(get_marathi_label('missing_user_or_group').format(row_num=row_num))
-                            error_count += 1
-                            continue
-
-                        target_group_id = None
-                        if str(group_identifier).isdigit():
-                            target_group_id = int(group_identifier)
-                        else:
-                            group_row = conn.execute('SELECT id FROM groups WHERE name = ?', (group_identifier,)).fetchone()
-                            if group_row:
-                                target_group_id = group_row['id']
-                            else:
-                                messages.append(get_marathi_label('group_not_found').format(row_num=row_num, user_name=user_name, group_identifier=group_identifier))
-                                error_count += 1
-                                continue
-
-                        # Ensure the uploaded user belongs to the currently selected group
-                        if target_group_id != selected_group_id:
-                            messages.append(f"पंक्ती {row_num}: सदस्य '{user_name}' निवडलेल्या गटाशी संबंधित नाही. (निर्दिष्ट गट ID: {target_group_id}, निवडलेला गट ID: {selected_group_id})")
-                            error_count += 1
-                            continue
-
-
-                        existing_user = conn.execute(
-                            'SELECT id FROM users WHERE name = ? AND group_id = ?',
-                            (user_name, target_group_id)
-                        ).fetchone()
-                        if existing_user:
-                            messages.append(get_marathi_label('user_exists_in_group').format(row_num=row_num, user_name=user_name, target_group_id=target_group_id))
-                            error_count += 1
-                            continue
-
-                        conn.execute(
-                            'INSERT INTO users (name, group_id, is_admin, status) VALUES (?, ?, ?, ?)',
-                            (user_name, target_group_id, is_admin, status)
-                        )
-                        messages.append(get_marathi_label('user_added_to_group').format(row_num=row_num, user_name=user_name, target_group_id=target_group_id))
-                        processed_count += 1
-
-                    except Exception as row_e:
-                        messages.append(f"पंक्ती {row_num}: {get_marathi_label('error_processing_row').format(error=row_e, user_name=row.get('user_name', 'N/A'))}")
-                        error_count += 1
-                conn.commit()
-                flash(get_marathi_label('upload_complete').format(processed_count=processed_count, error_count=error_count), 'info')
-                for msg in messages:
-                    flash(msg, 'info')
-            except Exception as e:
-                conn.rollback()
-                flash(get_marathi_label('upload_error').format(error=e), 'danger')
-            finally:
-                conn.close()
-        else:
-            flash(get_marathi_label('invalid_file_type'), 'danger')
-    return render_template('bulk_upload_users.html', 
-                           selected_group_id=selected_group_id,
-                           get_marathi_label=get_marathi_label,
-                           get_group=get_group)
-
-@app.route('/download_sample_transaction_csv')
-def download_sample_transaction_csv():
-    # Updated sample CSV with clearer headers and examples
-    sample_csv_content = """user_name,type,amount,date,is_cash_payment,is_paid,loan_id,new_loan_interest_rate
-Alice,contribution,1000,2024-05-20,0,1,,
-Bob,loan_disbursement,5000,2024-05-22,,,24.0,
-Bob,loan_repayment,1000,2024-06-20,0,1,1,
-Charlie,interest_paid,50,2024-06-20,0,1,2,
-Alice,contribution,500,2024-06-25,1,0,,
-""" # Example loan_id 1 for Bob, 2 for Charlie
+    # Create an in-memory file for the CSV content
+    csv_file = io.BytesIO(sample_csv_content.encode('utf-8'))
+    
+    # Set up Flask response to send the file
     return send_from_directory(
-        app.root_path, # Or a specific 'static' folder if you prefer
-        'sample_transactions_upload.csv',
+        app.root_path, # Or a specific directory if you save it to disk
+        'sample_transactions_upload.csv', # Dummy filename for the download
         mimetype='text/csv',
         as_attachment=True,
-        download_name='sample_transactions_upload.csv',
-        data=io.BytesIO(sample_csv_content.encode('utf-8'))
+        download_name='sample_transactions_upload.csv'
     )
 
 @app.route('/download_sample_users_csv')
 def download_sample_users_csv():
-    sample_csv_content = """user_name,group_id,is_admin,status
-Alice,1,0,active
-Bob,1,1,active
-Charlie,2,0,active
-"""
+    sample_csv_content = (
+        "user_name,group_name,is_admin\n"
+        "नवीन सदस्य १,गट अ,0\n"
+        "नवीन सदस्य २,गट ब,1\n"
+    )
+    # Create an in-memory file for the CSV content
+    csv_file = io.BytesIO(sample_csv_content.encode('utf-8'))
+    
     return send_from_directory(
-        app.root_path, # Or a specific 'static' folder if you prefer
+        app.root_path,
         'sample_users_upload.csv',
         mimetype='text/csv',
         as_attachment=True,
-        download_name='sample_users_upload.csv',
-        data=io.BytesIO(sample_csv_content.encode('utf-8'))
+        download_name='sample_users_upload.csv'
+    )
+
+@app.route('/bulk_upload_users', methods=['POST'])
+def bulk_upload_users():
+    print(f"DEBUG: bulk_upload_users request.form: {request.form}") # DEBUG PRINT
+    group_id = request.form.get('group_id', type=int)
+    if not group_id:
+        flash(get_marathi_label('please_select_group'), 'danger')
+        return redirect(url_for('index'))
+
+    if 'file' not in request.files:
+        flash(get_marathi_label('no_file_part'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash(get_marathi_label('no_selected_file'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+    
+    if not file.filename.endswith('.csv'):
+        flash(get_marathi_label('invalid_file_type'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+
+    processed_count = 0
+    error_count = 0
+    errors = []
+    conn = get_db_connection()
+    try:
+        # Read the file content into a BytesIO object
+        file_content = io.BytesIO(file.read())
+        file_content.seek(0) # Rewind to the beginning of the stream
+
+        # Decode using utf-8-sig to handle BOM if present, otherwise utf-8
+        csv_reader = csv.reader(io.TextIOWrapper(file_content, encoding='utf-8-sig'))
+        
+        header = [h.strip() for h in next(csv_reader)] # Read header
+        
+        # Define expected headers and their corresponding DB columns/logic
+        expected_headers = ['user_name', 'group_name', 'is_admin']
+        if not all(h in header for h in expected_headers):
+            flash(f"CSV headers mismatch. Expected: {', '.join(expected_headers)}", 'danger')
+            return redirect(url_for('index', group_id=group_id))
+
+        for row_num, row in enumerate(csv_reader, start=2):
+            try:
+                row_data = dict(zip(header, row))
+                user_name = row_data.get('user_name')
+                is_admin_str = row_data.get('is_admin', '0').strip()
+                is_admin = is_admin_str.lower() in ['1', 'true', 'yes']
+
+                if not user_name:
+                    errors.append(get_marathi_label('missing_user_or_group').format(row_num=row_num))
+                    error_count += 1
+                    continue
+
+                # Check if user already exists in this group
+                existing_user = conn.execute("SELECT id FROM users WHERE name = ? AND group_id = ?", (user_name, group_id)).fetchone()
+                if existing_user:
+                    flash(get_marathi_label('user_exists_in_group').format(row_num=row_num, user_name=user_name, target_group_id=group_id), 'info')
+                    processed_count += 1 # Count as processed even if skipped to acknowledge
+                    continue
+
+                conn.execute('INSERT INTO users (name, group_id, is_admin, status) VALUES (?, ?, ?, ?)', (user_name, group_id, is_admin, 'active'))
+                processed_count += 1
+                flash(get_marathi_label('user_added_to_group').format(row_num=row_num, user_name=user_name, target_group_id=group_id), 'success')
+
+            except Exception as e:
+                errors.append(get_marathi_label('error_processing_row').format(row_num=row_num, error=e))
+                error_count += 1
+                conn.rollback() # Rollback current row if error
+                continue
+        
+        conn.commit()
+        flash(get_marathi_label('upload_complete').format(processed_count=processed_count, error_count=error_count), 'success')
+
+    except Exception as e:
+        flash(get_marathi_label('upload_error').format(error=e), 'danger')
+        conn.rollback()
+    finally:
+        conn.close()
+    return redirect(url_for('index', group_id=group_id))
+
+
+@app.route('/bulk_upload_transactions', methods=['POST'])
+def bulk_upload_transactions():
+    print(f"DEBUG: bulk_upload_transactions request.form: {request.form}") # DEBUG PRINT
+    group_id = request.form.get('group_id', type=int)
+    if not group_id:
+        flash(get_marathi_label('please_select_group'), 'danger')
+        return redirect(url_for('index'))
+
+    if 'file' not in request.files:
+        flash(get_marathi_label('no_file_part'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash(get_marathi_label('no_selected_file'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+    
+    if not file.filename.endswith('.csv'):
+        flash(get_marathi_label('invalid_file_type'), 'danger')
+        return redirect(url_for('index', group_id=group_id))
+
+    processed_count = 0
+    error_count = 0
+    errors = []
+    
+    # Store transactions for potential duplicate check
+    transactions_to_process = []
+
+    conn = get_db_connection()
+    try:
+        file_content = io.BytesIO(file.read())
+        file_content.seek(0) # Rewind to the beginning of the stream
+        csv_reader = csv.reader(io.TextIOWrapper(file_content, encoding='utf-8-sig'))
+        
+        header = [h.strip() for h in next(csv_reader)]
+        
+        # Define expected headers for transactions
+        expected_transaction_headers = ['user_name', 'type', 'amount', 'date', 'is_cash_payment', 'is_paid', 'loan_id', 'new_loan_interest_rate']
+        if not all(h in header for h in expected_transaction_headers):
+            flash(f"CSV headers mismatch. Expected: {', '.join(expected_transaction_headers)}", 'danger')
+            return redirect(url_for('index', group_id=group_id))
+
+        for row_num, row in enumerate(csv_reader, start=2):
+            try:
+                row_data = dict(zip(header, row))
+                user_name = row_data.get('user_name')
+                transaction_type = row_data.get('type')
+                amount_str = row_data.get('amount')
+                date_str = row_data.get('date')
+                is_cash_payment_str = str(row_data.get('is_cash_payment', '0')).strip() # Handle None with str()
+                is_paid_str = str(row_data.get('is_paid', '1')).strip() # Default to paid for non-cash, handle None with str()
+                loan_id_str = str(row_data.get('loan_id', '')).strip() # Handle None with str()
+                new_loan_interest_rate_str = str(row_data.get('new_loan_interest_rate', '')).strip() # Handle None with str()
+
+                if not user_name or not transaction_type or not amount_str or not date_str:
+                    errors.append(get_marathi_label('missing_user_or_group').format(row_num=row_num))
+                    error_count += 1
+                    continue
+                
+                # Data type conversions
+                try:
+                    amount = float(amount_str)
+                    is_cash_payment = is_cash_payment_str.lower() in ['1', 'true', 'yes']
+                    is_paid = is_paid_str.lower() in ['1', 'true', 'yes']
+                    # For cash payments, is_paid should always be 0 initially unless explicitly marked 1 in CSV
+                    if is_cash_payment and not is_paid:
+                        is_paid = 0
+                    elif is_cash_payment and is_paid: # If cash and explicitly marked paid
+                        is_paid = 1
+                    elif not is_cash_payment: # Non-cash payments are always paid
+                        is_paid = 1
+
+                    # Date format check and conversion
+                    datetime.strptime(date_str, '%Y-%m-%d') # Validate date format
+                except ValueError as ve:
+                    errors.append(get_marathi_label('data_conversion_error').format(error=ve))
+                    error_count += 1
+                    continue
+
+                # Get user_id for the given user_name and group_id
+                user = conn.execute("SELECT id FROM users WHERE name = ? AND group_id = ?", (user_name, group_id)).fetchone()
+                if not user:
+                    errors.append(get_marathi_label('user_not_found_in_group').format(user_name=user_name, group_name=get_group(group_id)['name']))
+                    error_count += 1
+                    continue
+                user_id = user['id']
+
+                transaction_details = {
+                    'row_num': row_num,
+                    'user_id': user_id,
+                    'group_id': group_id,
+                    'type': transaction_type,
+                    'amount': amount,
+                    'date': date_str,
+                    'is_cash_payment': is_cash_payment,
+                    'is_paid': is_paid,
+                    'loan_id': int(loan_id_str) if loan_id_str else None,
+                    'new_loan_interest_rate': float(new_loan_interest_rate_str) if new_loan_interest_rate_str else None
+                }
+                transactions_to_process.append(transaction_details)
+
+            except Exception as e:
+                errors.append(get_marathi_label('error_processing_row').format(row_num=row_num, error=e))
+                error_count += 1
+                continue
+        
+        # Check for duplicates before processing
+        duplicate_transactions_found = []
+        for i, t1 in enumerate(transactions_to_process):
+            for j, t2 in enumerate(transactions_to_process):
+                if i < j and t1['user_id'] == t2['user_id'] and t1['type'] in ['contribution', 'loan_repayment'] and t1['date'] == t2['date']:
+                    duplicate_transactions_found.append({
+                        'user_name': conn.execute("SELECT name FROM users WHERE id = ?", (t1['user_id'],)).fetchone()['name'],
+                        'transaction_type': t1['type'],
+                        'transaction_amount': t1['amount'],
+                        'transaction_date': t1['date'],
+                        'row_num_1': t1['row_num'],
+                        'row_num_2': t2['row_num']
+                    })
+        
+        if duplicate_transactions_found and not request.form.get('confirm_duplicates'):
+            session['transactions_to_process'] = transactions_to_process # Store for next request
+            session['group_id_for_upload'] = group_id
+            return render_template('confirm_duplicates.html', 
+                                   duplicates=duplicate_transactions_found, 
+                                   get_marathi_label=get_marathi_label)
+
+        # Process transactions (after duplicate confirmation or if no duplicates)
+        for t in transactions_to_process:
+            try:
+                if t['type'] == 'contribution':
+                    conn.execute('INSERT INTO transactions (user_id, group_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                (t['user_id'], t['group_id'], t['type'], t['amount'], t['date'], t['is_cash_payment'], t['is_paid']))
+                
+                elif t['type'] == 'loan_disbursement':
+                    if t['loan_id'] is not None:
+                        raise ValueError(get_marathi_label('loan_id_not_for_new_loan'))
+                    if t['new_loan_interest_rate'] is None or not (0 <= t['new_loan_interest_rate'] <= 100): # Check for None explicitly
+                        raise ValueError(get_marathi_label('invalid_interest_rate').format(rate=t['new_loan_interest_rate']))
+                    
+                    cursor = conn.cursor()
+                    cursor.execute('INSERT INTO loans (user_id, group_id, original_amount, outstanding_balance, current_interest_rate, issue_date, last_interest_calc_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                (t['user_id'], t['group_id'], t['amount'], t['amount'], t['new_loan_interest_rate'], t['date'], t['date'], 'active'))
+                    loan_id = cursor.lastrowid
+                    conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                (t['user_id'], t['group_id'], loan_id, t['type'], t['amount'], t['date'], t['is_cash_payment'], t['is_paid']))
+
+                elif t['type'] == 'loan_repayment':
+                    loan_id = t['loan_id']
+                    if loan_id is None:
+                        raise ValueError(get_marathi_label('loan_id_missing'))
+                    
+                    loan = conn.execute("SELECT * FROM loans WHERE id = ? AND user_id = ? AND group_id = ?", (loan_id, t['user_id'], t['group_id'])).fetchone()
+                    if not loan:
+                        raise ValueError(get_marathi_label('loan_not_found').format(loan_id=loan_id))
+                    if loan['status'] == 'paid_off':
+                        raise ValueError(get_marathi_label('loan_already_paid_off'))
+                    
+                    outstanding_balance = loan['outstanding_balance']
+                    current_interest_rate = loan['current_interest_rate']
+                    last_interest_calc_date_str = loan['last_interest_calc_date']
+
+                    interest_accrued_for_repayment = calculate_interest_due(
+                        outstanding_balance,
+                        current_interest_rate,
+                        last_interest_calc_date_str,
+                        t['date'] # Use transaction date from CSV
+                    )
+                    
+                    interest_paid_amount = min(t['amount'], interest_accrued_for_repayment)
+                    principal_repaid_amount = t['amount'] - interest_paid_amount
+                    new_outstanding_balance = outstanding_balance - principal_repaid_amount
+
+                    # DEBUG: Print loan repayment details before update in bulk upload
+                    print(f"DEBUG BULK REPAY: Loan ID: {loan_id}, Original Outstanding: {outstanding_balance}, "
+                          f"Repayment Amount: {t['amount']}, Interest Accrued: {interest_accrued_for_repayment}, "
+                          f"Interest Paid: {interest_paid_amount}, Principal Repaid: {principal_repaid_amount}, "
+                          f"New Outstanding: {new_outstanding_balance}")
+
+                    conn.execute("UPDATE loans SET outstanding_balance = ?, last_interest_calc_date = ? WHERE id = ?",
+                                (new_outstanding_balance, t['date'], loan_id))
+
+                    conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                (t['user_id'], t['group_id'], loan_id, t['type'], t['amount'], t['date'], t['is_cash_payment'], t['is_paid']))
+                    
+                    if interest_paid_amount > 0:
+                        conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                    (t['user_id'], t['group_id'], loan_id, 'interest_paid', interest_paid_amount, t['date'], t['is_cash_payment'], t['is_paid']))
+                        conn.execute("UPDATE groups SET group_profit = group_profit + ? WHERE id = ?", (interest_paid_amount, t['group_id']))
+
+                    if new_outstanding_balance <= 0:
+                        conn.execute("UPDATE loans SET status = 'paid_off', outstanding_balance = 0 WHERE id = ?", (loan_id,))
+                    
+                    # DEBUG: Verify updated loan status and outstanding balance after commit (within this try block)
+                    # Note: This conn.execute will be part of the larger transaction.
+                    # It's better to fetch *after* the final conn.commit() if possible for true verification.
+                    # For immediate debugging, this is fine.
+                    updated_loan = conn.execute("SELECT outstanding_balance, status FROM loans WHERE id = ?", (loan_id,)).fetchone()
+                    print(f"DEBUG BULK REPAY: After Loan Update - Loan ID: {loan_id}, DB Outstanding: {updated_loan['outstanding_balance']}, DB Status: {updated_loan['status']}")
+
+
+                else:
+                    errors.append(get_marathi_label('unknown_transaction_type').format(transaction_type=t['type']))
+                    error_count += 1
+                    continue
+                
+                processed_count += 1
+
+            except Exception as e:
+                errors.append(get_marathi_label('error_processing_row').format(row_num=t['row_num'], error=e))
+                error_count += 1
+                continue # Continue to next row even if one fails
+        
+        conn.commit()
+        flash(get_marathi_label('upload_complete').format(processed_count=processed_count, error_count=error_count), 'success')
+        for err in errors:
+            flash(err, 'danger')
+
+    except Exception as e:
+        flash(get_marathi_label('upload_error').format(error=e), 'danger')
+        conn.rollback()
+    finally:
+        conn.close()
+    return redirect(url_for('index', group_id=group_id))
+
+@app.route('/confirm_duplicate_transactions', methods=['POST'])
+def confirm_duplicate_transactions():
+    print(f"DEBUG: confirm_duplicate_transactions request.form: {request.form}") # DEBUG PRINT
+    transactions_to_process = session.pop('transactions_to_process', None)
+    group_id = session.pop('group_id_for_upload', None)
+
+    if not transactions_to_process or not group_id:
+        flash("Session data missing for duplicate confirmation.", 'danger')
+        # Attempt to redirect to index without a group_id if not available
+        return redirect(url_for('index'))
+
+    if request.form.get('action') == 'accept':
+        flash(get_marathi_label('processing_duplicates_accepted'), 'info')
+        # Re-call the bulk_upload_transactions logic to process, now with confirmation
+        # This is a bit of a hack as it re-processes from session. Better would be to have a helper function.
+        # For simplicity, we'll mimic the logic here.
+        processed_count = 0
+        error_count = 0
+        errors = []
+        conn = get_db_connection()
+        try:
+            for t in transactions_to_process:
+                try:
+                    if t['type'] == 'contribution':
+                        conn.execute('INSERT INTO transactions (user_id, group_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                    (t['user_id'], t['group_id'], t['type'], t['amount'], t['date'], t['is_cash_payment'], t['is_paid']))
+                    
+                    elif t['type'] == 'loan_disbursement':
+                        if t['loan_id'] is not None:
+                            raise ValueError(get_marathi_label('loan_id_not_for_new_loan'))
+                        if t['new_loan_interest_rate'] is None or not (0 <= t['new_loan_interest_rate'] <= 100): # Check for None explicitly
+                            raise ValueError(get_marathi_label('invalid_interest_rate').format(rate=t['new_loan_interest_rate']))
+                        
+                        cursor = conn.cursor()
+                        cursor.execute('INSERT INTO loans (user_id, group_id, original_amount, outstanding_balance, current_interest_rate, issue_date, last_interest_calc_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                    (t['user_id'], t['group_id'], t['amount'], t['amount'], t['new_loan_interest_rate'], t['date'], t['date'], 'active'))
+                        loan_id = cursor.lastrowid
+                        conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                    (t['user_id'], t['group_id'], loan_id, t['type'], t['amount'], t['date'], t['is_cash_payment'], t['is_paid']))
+
+                    elif t['type'] == 'loan_repayment':
+                        loan_id = t['loan_id']
+                        if loan_id is None:
+                            raise ValueError(get_marathi_label('loan_id_missing'))
+                        
+                        loan = conn.execute("SELECT * FROM loans WHERE id = ? AND user_id = ? AND group_id = ?", (loan_id, t['user_id'], t['group_id'])).fetchone()
+                        if not loan:
+                            raise ValueError(get_marathi_label('loan_not_found').format(loan_id=loan_id))
+                        if loan['status'] == 'paid_off':
+                            raise ValueError(get_marathi_label('loan_already_paid_off'))
+                        
+                        outstanding_balance = loan['outstanding_balance']
+                        current_interest_rate = loan['current_interest_rate']
+                        last_interest_calc_date_str = loan['last_interest_calc_date']
+
+                        interest_accrued_for_repayment = calculate_interest_due(
+                            outstanding_balance,
+                            current_interest_rate,
+                            last_interest_calc_date_str,
+                            t['date'] # Use transaction date from CSV
+                        )
+                        
+                        interest_paid_amount = min(t['amount'], interest_accrued_for_repayment)
+                        principal_repaid_amount = t['amount'] - interest_paid_amount
+                        new_outstanding_balance = outstanding_balance - principal_repaid_amount
+
+                        conn.execute("UPDATE loans SET outstanding_balance = ?, last_interest_calc_date = ? WHERE id = ?",
+                                    (new_outstanding_balance, t['date'], loan_id))
+
+                        conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                    (t['user_id'], t['group_id'], loan_id, t['type'], t['amount'], t['date'], t['is_cash_payment'], t['is_paid']))
+                        
+                        if interest_paid_amount > 0:
+                            conn.execute('INSERT INTO transactions (user_id, group_id, loan_id, type, amount, date, is_cash_payment, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                        (t['user_id'], t['group_id'], loan_id, 'interest_paid', interest_paid_amount, t['date'], t['is_cash_payment'], t['is_paid']))
+                            conn.execute("UPDATE groups SET group_profit = group_profit + ? WHERE id = ?", (interest_paid_amount, t['group_id']))
+
+                        if new_outstanding_balance <= 0:
+                            conn.execute("UPDATE loans SET status = 'paid_off', outstanding_balance = 0 WHERE id = ?", (loan_id,))
+
+                    else:
+                        errors.append(get_marathi_label('unknown_transaction_type').format(transaction_type=t['type']))
+                        error_count += 1
+                        continue
+                    
+                    processed_count += 1
+                except Exception as e:
+                    errors.append(get_marathi_label('error_processing_row').format(row_num=t['row_num'], error=e))
+                    error_count += 1
+                    continue
+            conn.commit()
+            flash(get_marathi_label('upload_complete').format(processed_count=processed_count, error_count=error_count), 'success')
+            for err in errors:
+                flash(err, 'danger')
+        except Exception as e:
+            flash(get_marathi_label('upload_error').format(error=e), 'danger')
+            conn.rollback()
+        finally:
+            conn.close()
+
+    else: # Reject duplicates
+        flash(get_marathi_label('duplicate_transactions_rejected'), 'info')
+    
+    return redirect(url_for('index', group_id=group_id))
+
+
+@app.route('/transactions/<int:user_id>')
+def view_transactions(user_id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        flash(get_marathi_label('user_not_found'), 'danger')
+        conn.close()
+        return redirect(url_for('index'))
+
+    group_id = user['group_id']
+    from_date_str = request.args.get('from_date')
+    to_date_str = request.args.get('to_date')
+
+    query = "SELECT * FROM transactions WHERE user_id = ?"
+    params = [user_id]
+
+    if from_date_str:
+        query += " AND date >= ?"
+        params.append(from_date_str)
+    if to_date_str:
+        query += " AND date <= ?"
+        params.append(to_date_str)
+
+    query += " ORDER BY date DESC"
+    transactions = conn.execute(query, params).fetchall()
+    conn.close()
+
+    return render_template('transactions.html', 
+                           user=user, 
+                           transactions=transactions, 
+                           group_id=group_id,
+                           from_date=from_date_str, 
+                           to_date=to_date_str,
+                           get_marathi_label=get_marathi_label)
+
+@app.route('/download_transactions_csv/<int:user_id>')
+def download_transactions_csv(user_id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT name, group_id FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        flash(get_marathi_label('user_not_found'), 'danger')
+        conn.close()
+        return redirect(url_for('index'))
+
+    query = "SELECT type, amount, date, description, is_cash_payment, is_paid, loan_id FROM transactions WHERE user_id = ? ORDER BY date DESC"
+    transactions = conn.execute(query, (user_id,)).fetchall()
+    conn.close()
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+
+    headers = ['Type', 'Amount', 'Date', 'Description', 'Is Cash Payment', 'Is Paid', 'Loan ID']
+    cw.writerow(headers)
+
+    for transaction in transactions:
+        row = [
+            transaction['type'],
+            transaction['amount'],
+            transaction['date'],
+            transaction['description'],
+            'Yes' if transaction['is_cash_payment'] else 'No',
+            'Yes' if transaction['is_paid'] else 'No',
+            transaction['loan_id'] if transaction['loan_id'] else ''
+        ]
+        cw.writerow(row)
+
+    output = io.BytesIO(si.getvalue().encode('utf-8'))
+    output.seek(0)
+
+    return send_from_directory(
+        app.root_path,
+        f'{user["name"]}_transactions.csv',
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'{user["name"]}_transactions_{datetime.now().strftime("%Y%m%d")}.csv'
+    )
+
+@app.route('/download_users_csv/<int:group_id>')
+def download_users_csv(group_id):
+    conn = get_db_connection()
+    group = conn.execute('SELECT name FROM groups WHERE id = ?', (group_id,)).fetchone()
+    if not group:
+        flash(get_marathi_label('group_not_found').format(row_num='N/A', group_identifier=group_id), 'danger')
+        conn.close()
+        return redirect(url_for('index'))
+
+    users = conn.execute('SELECT name, is_admin, status FROM users WHERE group_id = ? ORDER BY name ASC', (group_id,)).fetchall()
+    conn.close()
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+
+    headers = ['User Name', 'Is Admin', 'Status']
+    cw.writerow(headers)
+
+    for user in users:
+        row = [
+            user['name'],
+            'Yes' if user['is_admin'] else 'No',
+            user['status']
+        ]
+        cw.writerow(row)
+
+    output = io.BytesIO(si.getvalue().encode('utf-8'))
+    output.seek(0)
+
+    return send_from_directory(
+        app.root_path,
+        f'{group["name"]}_users.csv',
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'{group["name"]}_users_{datetime.now().strftime("%Y%m%d")}.csv'
     )
 
 # --- Run the application ---
@@ -1209,18 +1440,14 @@ if __name__ == '__main__':
     # but for production, having actual files is better.
     with open('sample_transactions_upload.csv', 'w', encoding='utf-8') as f:
         f.write("""user_name,type,amount,date,is_cash_payment,is_paid,loan_id,new_loan_interest_rate
-Alice,contribution,1000,2024-05-20,0,1,,
-Bob,loan_disbursement,5000,2024-05-22,,,24.0,
-Bob,loan_repayment,1000,2024-06-20,0,1,1,
-Charlie,interest_paid,50,2024-06-20,0,1,2,
-Alice,contribution,500,2024-06-25,1,0,,
+अनिता ज्ञानोबा अडसुळे,contribution,1000,2024-05-01,0,1,
+आशा सत्यशील कांबळे,loan_disbursement,5000,2024-05-01,,24.0,
+आशा सत्यशील कांबळे,loan_repayment,1000,2024-05-02,0,1,1
 """)
     with open('sample_users_upload.csv', 'w', encoding='utf-8') as f:
-        f.write("""user_name,group_id,is_admin,status
-Alice,1,0,active
-Bob,1,1,active
-Charlie,2,0,active
+        f.write("""user_name,group_name,is_admin
+नवीन सदस्य १,गट अ,0
+नवीन सदस्य २,गट ब,1
 """)
-
-    init_db()
+    init_db() # Initialize the database tables if they don't exist
     app.run(debug=True)

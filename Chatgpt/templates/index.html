@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ get_marathi_label('app_name') }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="date"],
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #007bff;
+        }
+        .btn-secondary:hover {
+            background-color: #0056b3;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash-messages .alert {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .flash-messages .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        .flash-messages .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .flash-messages .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: 600;
+        }
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .flex-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .flex-item {
+            flex: 1 1 calc(50% - 10px); /* Two columns layout */
+            min-width: 300px; /* Minimum width for each column */
+        }
+        /* Styles for the new report widgets */
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .report-widget {
+            background-color: #e0f7fa; /* Light blue background */
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+        .report-widget.profit {
+            background-color: #e8f5e9; /* Light green for profit */
+        }
+        .report-widget.loan {
+            background-color: #ffe0b2; /* Light orange for loans */
+        }
+        .report-widget.balance {
+            background-color: #e3f2fd; /* Lighter blue for balance */
+        }
+        .report-widget h4 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .report-widget p {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+        }
+        .report-widget p.small-text {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .status-received {
+            color: green;
+            font-weight: bold;
+        }
+        .status-not_received {
+            color: red;
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            .flex-item {
+                flex: 1 1 100%; /* Single column on smaller screens */
+            }
+            .report-grid {
+                grid-template-columns: 1fr; /* Single column on smaller screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="text-3xl font-bold">{{ get_marathi_label('app_name') }}</h1>
+        </header>
+
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <div class="flex-container">
+            <div class="flex-item card">
+                <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('select_group') }}</h2>
+                <form action="/" method="GET" class="mb-4">
+                    <div class="form-group">
+                        <label for="group_id">{{ get_marathi_label('select_group') }}:</label>
+                        <select name="group_id" id="group_id" onchange="this.form.submit()"
+                                class="w-full p-2 border border-gray-300 rounded-md">
+                            <option value="">-- {{ get_marathi_label('select_group') }} --</option>
+                            {% for group in groups %}
+                                <option value="{{ group.id }}" {% if selected_group_id == group.id %}selected{% endif %}>
+                                    {{ group.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+
+                <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('add_group') }}</h2>
+                <form action="/add_group" method="POST">
+                    <div class="form-group">
+                        <label for="group_name">{{ get_marathi_label('group_name') }}:</label>
+                        <input type="text" id="group_name" name="group_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bank_account_details">{{ get_marathi_label('bank_account_details') }}:</label>
+                        <input type="text" id="bank_account_details" name="bank_account_details">
+                    </div>
+                    <div class="form-group">
+                        <label for="default_interest_rate">{{ get_marathi_label('default_interest_rate') }}:</label>
+                        <input type="number" step="0.01" id="default_interest_rate" name="default_interest_rate" value="12.0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bank_interest_rate">{{ get_marathi_label('bank_interest_rate') }}:</label>
+                        <input type="number" step="0.01" id="bank_interest_rate" name="bank_interest_rate" value="3.0" required>
+                    </div>
+                    <button type="submit" class="btn">{{ get_marathi_label('add') }}</button>
+                </form>
+            </div>
+
+            {% if selected_group_id %}
+                <div class="flex-item card">
+                    <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('group_financial_summary') }} ({{ get_group(selected_group_id).name }})</h2>
+                    <div class="report-grid">
+                        <div class="report-widget profit">
+                            <h4>{{ get_marathi_label('overall_profit') }}</h4>
+                            <p>₹{{ reports.overall_profit | round(2) }}</p>
+                        </div>
+                        <div class="report-widget balance">
+                            <h4>{{ get_marathi_label('saving_account_balance') }}</h4>
+                            <p>₹{{ reports.saving_account_balance | round(2) }}</p>
+                            <p class="small-text">{{ get_marathi_label('bank_interest_rate') }}: {{ reports.bank_interest_rate | round(2) }}% 
+                                <button onclick="openEditBankInterestRateModal({{ selected_group_id }}, {{ reports.bank_interest_rate }})" class="text-blue-600 hover:underline text-sm ml-2">
+                                    ({{ get_marathi_label('edit_bank_interest_rate') }})
+                                </button>
+                            </p>
+                        </div>
+                        <div class="report-widget">
+                            <h4>{{ get_marathi_label('total_contributions') }}</h4>
+                            <p>₹{{ reports.total_contributions | round(2) }}</p>
+                        </div>
+                        <div class="report-widget loan">
+                            <h4>{{ get_marathi_label('total_loans_disbursed') }}</h4>
+                            <p>₹{{ reports.total_loans_disbursed | round(2) }}</p>
+                        </div>
+                        <div class="report-widget">
+                            <h4>{{ get_marathi_label('total_loan_repayments') }}</h4>
+                            <p>₹{{ reports.total_loan_repayments | round(2) }}</p>
+                        </div>
+                        <div class="report-widget profit">
+                            <h4>{{ get_marathi_label('total_interest_received') }}</h4>
+                            <p>₹{{ reports.total_interest_received | round(2) }}</p>
+                        </div>
+                        <div class="report-widget">
+                            <h4>{{ get_marathi_label('monthly_profit') }}</h4>
+                            <p>₹{{ reports.monthly_profit | round(2) }}</p>
+                        </div>
+                        <div class="report-widget">
+                            <h4>{{ get_marathi_label('monthly_investment') }}</h4>
+                            <p>₹{{ reports.monthly_investment | round(2) }}</p>
+                        </div>
+                        <div class="report-widget">
+                            <h4>{{ get_marathi_label('yearly_profit') }}</h4>
+                            <p>₹{{ reports.yearly_profit | round(2) }}</p>
+                        </div>
+                        <div class="report-widget">
+                            <h4>{{ get_marathi_label('yearly_investment') }}</h4>
+                            <p>₹{{ reports.yearly_investment | round(2) }}</p>
+                        </div>
+                        <div class="report-widget loan">
+                            <h4>{{ get_marathi_label('total_pending_cash_payments') }}</h4>
+                            <p>₹{{ reports.total_pending_cash_payments | round(2) }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if selected_group_id %}
+            <div class="flex-container">
+                <div class="flex-item card">
+                    <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('bulk_upload_transactions') }}</h2>
+                    <p class="mb-4">
+                        <a href="{{ url_for('download_sample_transaction_csv') }}" class="btn btn-secondary text-sm">
+                            {{ get_marathi_label('download_sample_transactions') }}
+                        </a>
+                    </p>
+                    <form action="{{ url_for('bulk_upload_transactions', group_id=selected_group_id) }}" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="transaction_csv_file">{{ get_marathi_label('choose_csv_file') }}:</label>
+                            <input type="file" id="transaction_csv_file" name="csv_file" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn">{{ get_marathi_label('upload') }}</button>
+                    </form>
+                </div>
+
+                <div class="flex-item card">
+                    <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('bulk_upload_users') }}</h2>
+                    <p class="mb-4">
+                        <a href="{{ url_for('download_sample_users_csv') }}" class="btn btn-secondary text-sm">
+                            {{ get_marathi_label('download_sample_users') }}
+                        </a>
+                    </p>
+                    <form action="{{ url_for('bulk_upload_users', group_id=selected_group_id) }}" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="user_csv_file">{{ get_marathi_label('choose_csv_file') }}:</label>
+                            <input type="file" id="user_csv_file" name="csv_file" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn">{{ get_marathi_label('upload') }}</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('all_users_summary') }}</h2>
+                {% if all_users_data %}
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr>
+                                <th>{{ get_marathi_label('user_name') }}</th>
+                                <th>{{ get_marathi_label('status') }}</th>
+                                <th>{{ get_marathi_label('total_amount_paid_by_user_till_date') }}</th>
+                                <th>{{ get_marathi_label('pending_contribution_by_user') }}</th>
+                                <th>{{ get_marathi_label('total_loans_disbursed_to_user') }}</th>
+                                <th>{{ get_marathi_label('pending_loan_amount_with_interest') }}</th>
+                                <th>{{ get_marathi_label('monthly_contribution_status') }}</th>
+                                <th>{{ get_marathi_label('action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in all_users_data %}
+                                <tr>
+                                    <td>{{ user.user_name }} {% if user.is_admin %}(Admin){% endif %}</td>
+                                    <td>{{ get_marathi_label(user.user_status) }}</td>
+                                    <td>₹{{ user.total_amount_paid_by_user_till_date | round(2) }}</td>
+                                    <td>₹{{ user.pending_contributions_by_user | round(2) }}</td>
+                                    <td>₹{{ user.total_loans_disbursed_to_user | round(2) }}</td>
+                                    <td>₹{{ user.remaining_loan_amount_with_accrued_interest | round(2) }}</td>
+                                    <td>
+                                        <span class="{% if user.monthly_contribution_status == 'received' %}status-received{% else %}status-not_received{% endif %}">
+                                            {{ get_marathi_label(user.monthly_contribution_status) }}
+                                        </span>
+                                    </td>
+                                    <td class="space-x-2">
+                                        <button onclick="openLoanModal('{{ user.user_id }}', '{{ user.user_name }}')" class="btn btn-secondary btn-sm">
+                                            {{ get_marathi_label('add_new_loan') }}
+                                        </button>
+                                        </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-gray-600">No users found in this group.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div class="card text-center">
+            <a href="{{ url_for('all_groups_report') }}" class="btn btn-secondary">
+                {{ get_marathi_label('view_all_groups_report') }}
+            </a>
+        </div>
+    </div>
+
+    <div id="loanModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeLoanModal()">&times;</span>
+            <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('add_new_loan') }} for <span id="loanModalUserName"></span></h2>
+            <form action="/add_loan_manual" method="POST" id="loanForm">
+                <input type="hidden" name="group_id" value="{{ selected_group_id }}">
+                <div class="form-group">
+                    <label for="loanUserIdSelect">{{ get_marathi_label('user_name') }}:</label>
+                    <select id="loanUserIdSelect" name="user_id" class="w-full p-2 border border-gray-300 rounded-md" required>
+                        <option value="">-- Select User --</option>
+                        {% for user in users_in_selected_group %}
+                            <option value="{{ user.id }}">{{ user.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="loanAmount">{{ get_marathi_label('loan_amount') }}:</label>
+                    <input type="number" step="0.01" id="loanAmount" name="loan_amount" required>
+                </div>
+                <div class="form-group">
+                    <label for="loanIssueDate">{{ get_marathi_label('loan_issue_date') }}:</label>
+                    <input type="date" id="loanIssueDate" name="loan_issue_date" value="{{ current_date }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="loanInterestRate">{{ get_marathi_label('loan_interest_rate') }}:</label>
+                    <input type="number" step="0.01" id="loanInterestRate" name="loan_interest_rate" value="{{ get_group(selected_group_id).default_interest_rate if selected_group_id else '12.0' }}" required>
+                </div>
+                <button type="submit" class="btn">{{ get_marathi_label('add_new_loan') }}</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="editBankInterestRateModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeEditBankInterestRateModal()">&times;</span>
+            <h2 class="text-xl font-semibold mb-4">{{ get_marathi_label('edit_bank_interest_rate') }}</h2>
+            <form action="/update_bank_interest_rate" method="POST" id="editBankInterestRateForm">
+                <input type="hidden" name="group_id" id="editBankInterestRateGroupId">
+                <div class="form-group">
+                    <label for="newBankInterestRate">{{ get_marathi_label('new_interest_rate') }}:</label>
+                    <input type="number" step="0.01" id="newBankInterestRate" name="new_bank_interest_rate" required>
+                </div>
+                <button type="submit" class="btn">{{ get_marathi_label('update') }}</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Loan Modal (for adding new loan)
+        function openLoanModal(userId, userName) {
+            // Set the selected user in the dropdown when opening the modal
+            document.getElementById('loanUserIdSelect').value = userId;
+            document.getElementById('loanModalUserName').innerText = userName;
+            document.getElementById('loanModal').classList.remove('hidden');
+        }
+
+        function closeLoanModal() {
+            document.getElementById('loanModal').classList.add('hidden');
+        }
+
+        // Edit Bank Interest Rate Modal
+        function openEditBankInterestRateModal(groupId, currentRate) {
+            document.getElementById('editBankInterestRateGroupId').value = groupId;
+            document.getElementById('newBankInterestRate').value = currentRate;
+            document.getElementById('editBankInterestRateModal').classList.remove('hidden');
+        }
+
+        function closeEditBankInterestRateModal() {
+            document.getElementById('editBankInterestRateModal').classList.add('hidden');
+        }
+
+
+        // Close modals if clicking outside
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('loanModal')) {
+                closeLoanModal();
+            }
+            if (event.target == document.getElementById('editBankInterestRateModal')) {
+                closeEditBankInterestRateModal();
+            }
+        }
+    </script>
+</body>
+</html>

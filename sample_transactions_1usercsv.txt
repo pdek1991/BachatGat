@@ -1,0 +1,2 @@
+user_name,type,amount,date,is_cash_payment,is_paid,loan_id
+सुनिता सुधाकर कांबळे,contribution,10000,2025-05-01,0,1,

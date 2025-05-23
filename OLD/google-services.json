@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "274397106815",
+    "project_id": "bachatgat-2775b",
+    "storage_bucket": "bachatgat-2775b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274397106815:android:3b215123429e51a914a54a",
+        "android_client_info": {
+          "package_name": "com.app.BachatGat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeWBlD5JQGxYgrlzn5ID0SNUSD9NbaG-o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

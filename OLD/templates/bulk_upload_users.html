@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ get_marathi_label('bulk_upload_transactions') }} - {{ get_marathi_label('app_name') }}</title>
+    <title>{{ get_marathi_label('bulk_upload_users') }} - {{ get_marathi_label('app_name') }}</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         body {
@@ -78,7 +78,7 @@
 
         <div class="card">
             <div class="card-header">
-                <h3>{{ get_marathi_label('bulk_upload_transactions') }}</h3>
+                <h3>{{ get_marathi_label('bulk_upload_users') }}</h3>
                 {% if selected_group_id %}
                     <h5>गट: {{ get_group(selected_group_id)['name'] }} (ID: {{ selected_group_id }})</h5>
                 {% else %}
@@ -87,25 +87,22 @@
             </div>
             <div class="card-body">
                 {% if selected_group_id %}
-                    <p>कृपया खालील फॉरमॅटमध्ये CSV फाइल तयार करा आणि अपलोड करा. हे व्यवहार फक्त निवडलेल्या गटातील सदस्यांसाठी असतील.</p>
-                    <p>उदा. CSV हेडर्स: <code>user_name,type,amount,date,is_cash_payment,is_paid,new_loan_interest_rate</code></p>
+                    <p>कृपया खालील फॉरमॅटमध्ये CSV फाइल तयार करा आणि अपलोड करा. हे सदस्य फक्त निवडलेल्या गटात जोडले जातील.</p>
+                    <p>उदा. CSV हेडर्स: <code>user_name,group_id,is_admin,status</code></p>
                     <ul>
-                        <li><code>user_name</code>: सदस्याचे पूर्ण नाव (अनिवार्य).</li>
-                        <li><code>type</code>: व्यवहाराचा प्रकार ('contribution', 'loan_disbursement'). **टीप: सर्व जमा होणाऱ्या रकमेसाठी 'contribution' प्रकार वापरा. प्रणाली आपोआप योगदान, व्याज आणि कर्जाची परतफेड करेल.**</li>
-                        <li><code>amount</code>: व्यवहार रक्कम (अनिवार्य).</li>
-                        <li><code>date</code>: व्यवहार तारीख (YYYY-MM-DD फॉरमॅटमध्ये, रिकामे ठेवल्यास आजची तारीख).</li>
-                        <li><code>is_cash_payment</code>: 1 जर रोख भरणा असेल, 0 जर नसेल (रिकामे ठेवल्यास 0).</li>
-                        <li><code>is_paid</code>: 1 जर भरणा झाला असेल, 0 जर बाकी असेल (रोख भरणासाठी वापरले जाते, रिकामे ठेवल्यास 1).</li>
-                        <li><code>new_loan_interest_rate</code>: नवीन कर्जासाठी व्याज दर (<code>loan_disbursement</code> साठी, रिकामे ठेवल्यास गटाचा पूर्वनिर्धारित दर वापरला जातो).</li>
+                        <li><code>user_name</code>: सदस्याचे नाव (अनिवार्य).</li>
+                        <li><code>group_id</code>: ज्या गटात सदस्य जोडायचा आहे त्याचा आयडी (अनिवार्य).</li>
+                        <li><code>is_admin</code>: 1 जर प्रशासक असेल, 0 जर नसेल (रिकामे ठेवल्यास 0).</li>
+                        <li><code>status</code>: 'active' किंवा 'inactive' (रिकामे ठेवल्यास 'active').</li>
                     </ul>
 
                     <p>
-                        <a href="{{ url_for('download_sample_transaction_csv') }}" class="btn btn-sm btn-secondary">
-                            <i class="fas fa-download"></i> {{ get_marathi_label('download_sample_transactions') }}
+                        <a href="{{ url_for('download_sample_users_csv') }}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-download"></i> {{ get_marathi_label('download_sample_users') }}
                         </a>
                     </p>
 
-                    <form method="POST" enctype="multipart/form-data" action="{{ url_for('bulk_upload_transactions', group_id=selected_group_id) }}">
+                    <form method="POST" enctype="multipart/form-data" action="{{ url_for('bulk_upload_users', group_id=selected_group_id) }}">
                         <div class="form-group">
                             <label for="csv_file">{{ get_marathi_label('choose_csv_file') }}:</label>
                             <input type="file" name="csv_file" id="csv_file" accept=".csv" class="form-control-file" required>
