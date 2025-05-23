@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulk Upload Users</title>
+    <title>Bulk Upload Transactions</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f8f9fa; color: #333; }
         .container { max-width: 800px; margin: auto; background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -54,7 +54,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Bulk Upload Users</h1>
+        <h1>Bulk Upload Transactions</h1>
         <div class="flash-messages">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -65,17 +65,23 @@
             {% endwith %}
         </div>
 
-        <p>Upload a CSV file to add multiple users.</p>
+        <p>Upload a CSV file containing various transaction types (contributions, loan repayments, interest payments, loan disbursements).</p>
         <p>
             <strong>CSV Columns:</strong> <br>
-            `user_name` (Name of the user), `group_id` (ID of the group, e.g., 1) or `group_name` (Name of the group, e.g., "My Bachatgat"), `is_admin` (0 for No, 1 for Yes - optional, default 0), `status` (e.g., "active", "inactive" - optional, default "active")
+            `user_name` (exact name of user), `type` (e.g., `contribution`, `loan_repayment`, `interest_paid`, `loan_disbursement`), `amount`, `date` (YYYY-MM-DD) <br>
+            `is_cash_payment` (0 or 1, optional, default 0), `is_paid` (0 or 1, optional, default 1) <br>
+            `loan_id` (<strong>Required for `loan_repayment` and `interest_paid`</strong>, leave blank for `contribution`/`loan_disbursement`)<br>
+            `new_loan_interest_rate` (Optional, **for `loan_disbursement` only**, overrides group default rate)
         </p>
-        <a href="{{ url_for('download_sample_users_csv') }}" class="button" style="display: inline-block; margin-bottom: 15px;">Download Sample Users CSV</a>
+        <p>
+            <strong>Important:</strong> All transactions in the uploaded CSV must belong to the currently selected group (Group ID: **{{ selected_group_id }}**).
+        </p>
+        <a href="{{ url_for('download_sample_transaction_csv') }}" class="button" style="display: inline-block; margin-bottom: 15px;">Download Sample Transaction CSV</a>
 
-        <form action="{{ url_for('bulk_upload_users', group_id=selected_group_id) }}" method="post" enctype="multipart/form-data">
+        <form action="{{ url_for('bulk_upload_transactions', group_id=selected_group_id) }}" method="post" enctype="multipart/form-data">
             <label for="csv_file">Select CSV File:</label>
             <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
-            <input type="submit" value="Upload Users CSV">
+            <input type="submit" value="Upload Transactions CSV">
         </form>
 
         <a href="{{ url_for('index', group_id=selected_group_id) }}" class="back-link">← Back to Dashboard</a>
