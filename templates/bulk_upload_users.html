@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Upload Users - Bachatgat App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Add some basic styles here or link to your existing style.css */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .form-section {
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: #fdfdfd;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="file"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+        }
+        input[type="submit"] {
+            background-color: #007bff; /* Blue for user related actions */
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        .flash-messages {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+        .flash-messages li {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        .flash-messages li.success {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        .flash-messages li.danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .flash-messages li.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+        .back-link:hover {
+            color: #0056b3;
+        }
+        .sample-csv-link {
+            margin-top: 15px;
+            display: block;
+            font-size: 0.9em;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .sample-csv-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bulk Upload Users</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <div class="form-section">
+            <p>Upload a CSV file to add multiple users at once to any group.</p>
+            <p>
+                <a href="{{ url_for('download_sample_users_csv') }}" class="sample-csv-link">
+                    <i class="fas fa-download"></i> Download Sample CSV Format for Users
+                </a>
+            </p>
+            <p><strong>CSV Requirements:</strong></p>
+            <ul>
+                <li>Must contain headers: `user_name`, `group_id` (or `group_name`).</li>
+                <li>Optional headers: `is_admin` (0 or 1), `status` (e.g., 'active', 'inactive').</li>
+                <li>`group_id` refers to the numeric ID of the group. If `group_name` is used, the group must exist by that name.</li>
+                <li>If both `group_id` and `group_name` are provided, `group_id` takes precedence.</li>
+                <li>Users will be added only if they don't already exist in the specified group.</li>
+            </ul>
+
+            <form action="{{ url_for('bulk_upload_users', group_id=selected_group_id) }}" method="post" enctype="multipart/form-data">
+                <label for="csv_file">Select CSV File:</label>
+                <input type="file" name="csv_file" id="csv_file" accept=".csv" required>
+                <input type="submit" value="Upload Users CSV">
+            </form>
+        </div>
+
+        <a href="{{ url_for('index', group_id=selected_group_id) }}" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Group Dashboard
+        </a>
+    </div>
+</body>
+</html>

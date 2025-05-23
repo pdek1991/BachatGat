@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bachatgat Management App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* General Body and Container Styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px; /* Wider container for more content */
+            margin: 30px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        h1 { text-align: center; margin-bottom: 30px; }
+        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 25px; }
+
+        /* Flash Messages */
+        .flash-messages {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+        .flash-messages li {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        .flash-messages li.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .flash-messages li.danger { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .flash-messages li.info { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
+        .flash-messages li.warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+
+
+        /* Group Selection */
+        .group-selection {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .group-selection form {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        .group-selection select, .group-selection input[type="submit"] {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .group-selection input[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            transition: background-color 0.3s ease;
+        }
+        .group-selection input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        /* Group Addition Form */
+        .form-section {
+            background-color: #fdfdfd;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .form-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        .form-section input[type="text"],
+        .form-section input[type="number"],
+        .form-section input[type="date"],
+        .form-section textarea,
+        .form-section select {
+            width: calc(100% - 22px); /* Account for padding */
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+        .form-section input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+            text-decoration: none; /* For button links */
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #218838;
+        }
+        .button.secondary {
+            background-color: #6c757d;
+        }
+        .button.secondary:hover {
+            background-color: #5a6268;
+        }
+        .button.danger {
+            background-color: #dc3545;
+        }
+        .button.danger:hover {
+            background-color: #c82333;
+        }
+
+        /* User List and Details */
+        .user-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .user-card h3 {
+            margin-top: 0;
+            color: #34495e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-card h3 small {
+            font-size: 0.7em;
+            color: #666;
+        }
+        .user-card .loan-details, .user-card .transaction-details {
+            margin-top: 10px;
+            border-top: 1px dashed #eee;
+            padding-top: 10px;
+        }
+        .user-card .loan-item, .user-card .transaction-item {
+            background-color: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 3px;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .user-card .loan-item strong, .user-card .transaction-item strong {
+            color: #2c3e50;
+        }
+        .user-actions form {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        /* Reports Section */
+        .reports-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .report-card {
+            background-color: #e6f7ff; /* Light blue */
+            border: 1px solid #b3e0ff;
+            border-left: 5px solid #007bff; /* Blue border for emphasis */
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        }
+        .report-card h4 {
+            margin-top: 0;
+            color: #0056b3;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        .report-card p {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        /* NEW: User Addition Section Styling */
+        .user-addition-section {
+            display: flex;
+            gap: 20px; /* Space between the two sections */
+            margin-top: 20px;
+            flex-wrap: wrap; /* Allows wrapping on smaller screens */
+        }
+        .user-addition-section .form-section {
+            flex: 1; /* Each section takes equal width */
+            min-width: 300px; /* Minimum width before wrapping */
+        }
+        .user-addition-section h3 {
+            margin-top: 0;
+            color: #34495e;
+        }
+        .bulk-upload-button {
+            background-color: #007bff; /* Blue for user related actions */
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+        .bulk-upload-button:hover {
+            background-color: #0056b3;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bachatgat Management App</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <div class="group-selection">
+            <form action="{{ url_for('add_group') }}" method="post" style="display: inline-block;">
+                <input type="text" name="group_name" placeholder="New Group Name" required>
+                <input type="text" name="bank_account_details" placeholder="Bank Account Details (Optional)">
+                <button type="submit" class="button"><i class="fas fa-plus"></i> Add New Group</button>
+            </form>
+
+            <form action="{{ url_for('index') }}" method="get" style="display: inline-block; margin-left: 20px;">
+                <label for="group_select">Select Group:</label>
+                <select name="group_id" id="group_select">
+                    <option value="">-- Select Group --</option>
+                    {% for group in groups %}
+                        <option value="{{ group.id }}" {% if group.id == selected_group_id %}selected{% endif %}>
+                            {{ group.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <input type="submit" value="Go">
+            </form>
+        </div>
+
+        {% if selected_group_id %}
+            <hr>
+            <div class="group-details">
+                <h2>Group: {{ get_group(selected_group_id).name }} <small>(Balance: ₹{{ "%.2f"|format(group_balance) }})</small></h2>
+                <p>Bank Account: {{ get_group(selected_group_id).bank_account_details or 'N/A' }}</p>
+            </div>
+
+            <hr>
+            <div class="user-addition-section">
+                <div class="form-section">
+                    <h3>Add Single User</h3>
+                    <form action="{{ url_for('add_user') }}" method="post">
+                        <input type="hidden" name="group_id" value="{{ selected_group_id }}">
+                        <label for="user_name">User Name:</label>
+                        <input type="text" id="user_name" name="user_name" required>
+
+                        <label for="is_admin">
+                            <input type="checkbox" id="is_admin" name="is_admin"> Is Admin?
+                        </label>
+                        <button type="submit" class="button add-button"><i class="fas fa-user-plus"></i> Add User</button>
+                    </form>
+                </div>
+
+                <div class="form-section">
+                    <h3>Bulk Upload Users</h3>
+                    <p>Upload a CSV file to add multiple users to this or other groups.</p>
+                    <a href="{{ url_for('bulk_upload_users', group_id=selected_group_id) }}" class="button bulk-upload-button">
+                        <i class="fas fa-file-upload"></i> Go to Bulk User Upload
+                    </a>
+                </div>
+            </div>
+            <hr>
+
+            <h2>Members of {{ get_group(selected_group_id).name }}</h2>
+            <div class="user-list">
+                {% if not users %}
+                    <p>No users in this group yet. Add some above!</p>
+                {% else %}
+                    {% for user in users %}
+                        <div class="user-card">
+                            <h3>
+                                {{ user.name }}
+                                <small>
+                                    {% if user.is_admin %}(Admin){% endif %}
+                                    Status: {{ user.status.capitalize() }}
+                                </small>
+                            </h3>
+                            <div class="user-actions">
+                                <form action="{{ url_for('toggle_user_status', user_id=user.id) }}" method="post" style="display:inline;">
+                                    <button type="submit" class="button {% if user.status == 'active' %}danger{% else %}success{% endif %} button-small">
+                                        {% if user.status == 'active' %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('add_monthly_contribution', user_id=user.id) }}" method="post">
+                                    <input type="number" name="amount" placeholder="Contribution Amt" step="0.01" required>
+                                    <label><input type="checkbox" name="is_cash_payment"> Cash Payment?</label>
+                                    <button type="submit" class="button"><i class="fas fa-hand-holding-usd"></i> Add Contribution</button>
+                                </form>
+                                <form action="{{ url_for('disburse_loan', user_id=user.id) }}" method="post">
+                                    <input type="number" name="loan_amount" placeholder="Loan Amount" step="0.01" required>
+                                    <input type="number" name="interest_rate" placeholder="Interest % (e.g., 1)" step="0.01" required>
+                                    <input type="date" name="start_date" value="{{ current_date }}" required>
+                                    <input type="date" name="end_date" placeholder="End Date (Optional)">
+                                    <button type="submit" class="button secondary"><i class="fas fa-money-bill-wave"></i> Disburse Loan</button>
+                                </form>
+                            </div>
+
+                            {% if user_transactions[user.id] %}
+                                <div class="transaction-details">
+                                    <h4>Transactions:</h4>
+                                    {% for transaction in user_transactions[user.id] %}
+                                        <div class="transaction-item">
+                                            <span><strong>{{ transaction.type.replace('_', ' ').title() }}:</strong> ₹{{ "%.2f"|format(transaction.amount) }} on {{ transaction.date }}</span>
+                                            {% if transaction.is_cash_payment and not transaction.is_paid %}
+                                                <span style="color: orange; font-weight: bold;">(Cash - Pending)</span>
+                                                <form action="{{ url_for('mark_payment_paid', transaction_id=transaction.id) }}" method="post" style="display:inline;">
+                                                    <button type="submit" class="button success button-small">Mark Paid</button>
+                                                </form>
+                                            {% elif transaction.is_cash_payment and transaction.is_paid %}
+                                                 <span style="color: green; font-weight: bold;">(Cash - Paid)</span>
+                                            {% else %}
+                                                <span style="color: green;">(Paid)</span>
+                                            {% endif %}
+                                            <small>{{ transaction.description }}</small>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            {% if user_loans[user.id] %}
+                                <div class="loan-details">
+                                    <h4>Active Loans:</h4>
+                                    {% for loan in user_loans[user.id] %}
+                                        <div class="loan-item">
+                                            <span>
+                                                <strong>Loan ID {{ loan.id }}:</strong> Principal ₹{{ "%.2f"|format(loan.principal_amount) }}
+                                                (Outstanding: ₹{{ "%.2f"|format(loan.outstanding_balance) }})
+                                            </span>
+                                            <span>
+                                                Interest: {{ "%.2f"|format(loan.interest_rate_per_month * 100) }}% per month
+                                            </span>
+                                            <span>
+                                                Start Date: {{ loan.start_date }}
+                                                {% if loan.end_date %}, End Date: {{ loan.end_date }}{% endif %}
+                                            </span>
+                                            <form action="{{ url_for('repay_loan', loan_id=loan.id) }}" method="post">
+                                                <input type="number" name="repayment_amount" placeholder="Repay Amount" step="0.01" required>
+                                                <button type="submit" class="button"><i class="fas fa-coins"></i> Repay Loan</button>
+                                            </form>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <hr>
+            <h2>Group Financial Reports</h2>
+            <div class="reports-section">
+                <div class="report-card">
+                    <h4>Total Funds Invested (Contributions)</h4>
+                    <p>₹{{ "%.2f"|format(reports.total_investment) }}</p>
+                </div>
+                <div class="report-card">
+                    <h4>Total Loans Repaid by Members</h4>
+                    <p>₹{{ "%.2f"|format(reports.total_loan_repaid) }}</p>
+                </div>
+                <div class="report-card">
+                    <h4>Total Interest Received by Group</h4>
+                    <p>₹{{ "%.2f"|format(reports.total_interest_received) }}</p>
+                </div>
+                <div class="report-card">
+                    <h4>Overall Profit (Interest Income)</h4>
+                    <p>₹{{ "%.2f"|format(reports.overall_profit) }}</p>
+                </div>
+                <div class="report-card">
+                    <h4>Monthly Profit ({{ current_date.split('-')[0] }}-{{ current_date.split('-')[1] }})</h4>
+                    <p>₹{{ "%.2f"|format(reports.monthly_profit) }}</p>
+                </div>
+                <div class="report-card">
+                    <h4>Yearly Profit ({{ current_date.split('-')[0] }})</h4>
+                    <p>₹{{ "%.2f"|format(reports.yearly_profit) }}</p>
+                </div>
+                <div class="report-card">
+                    <h4>Monthly Investment ({{ current_date.split('-')[0] }}-{{ current_date.split('-')[1] }})</h4>
+                    <p>₹{{ "%.2f"|format(reports.monthly_investment) }}</p>
+                </div>
+                <div class="report-card">
+                    <h4>Yearly Investment ({{ current_date.split('-')[0] }})</h4>
+                    <p>₹{{ "%.2f"|format(reports.yearly_investment) }}</p>
+                </div>
+            </div>
+            <hr>
+            <div class="form-section">
+                <h3>Bulk Upload Transactions (Contributions/Repayments)</h3>
+                <p>Use this for bulk adding contributions or loan repayments for existing users in the current group.</p>
+                <a href="{{ url_for('bulk_upload', group_id=selected_group_id) }}" class="button bulk-upload-button">
+                    <i class="fas fa-file-upload"></i> Go to Transaction Bulk Upload
+                </a>
+            </div>
+
+        {% else %}
+            <p style="text-align: center; margin-top: 50px; font-size: 1.2em; color: #666;">
+                Please select a group from the dropdown above to view its details and manage members.
+            </p>
+        {% endif %}
+    </div>
+</body>
+</html>
