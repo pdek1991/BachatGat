@@ -1,0 +1,6 @@
+user_name,type,amount,date,is_cash_payment,is_paid,loan_id,new_loan_interest_rate
+Alice,contribution,1000,2024-05-20,0,1,,
+Bob,loan_disbursement,5000,2024-05-22,,,24.0,
+Bob,loan_repayment,1000,2024-06-20,0,1,1,
+Charlie,interest_paid,50,2024-06-20,0,1,2,
+Alice,contribution,500,2024-06-25,1,0,,

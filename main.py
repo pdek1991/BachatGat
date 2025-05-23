@@ -13,7 +13,7 @@ DATABASE = 'bachatgat.db'
 
 # --- Marathi Labels Dictionary ---
 MARATHI_LABELS = {
-    'app_name': 'बचत गट व्यवस्थापन',
+    'app_name': 'अष्टशील महिला बचत गट',
     'select_group': 'गट निवडा',
     'add_group': 'नवीन गट जोडा',
     'group_name': 'गटाचे नाव',
@@ -864,7 +864,8 @@ def bulk_upload_transactions():
             
     return render_template('bulk_upload_transactions.html', 
                            selected_group_id=selected_group_id,
-                           get_marathi_label=get_marathi_label)
+                           get_marathi_label=get_marathi_label,
+                           get_group=get_group)
 
 @app.route('/confirm_duplicate_transactions', methods=['GET', 'POST'])
 def confirm_duplicate_transactions():
@@ -1162,7 +1163,8 @@ def bulk_upload_users():
             flash(get_marathi_label('invalid_file_type'), 'danger')
     return render_template('bulk_upload_users.html', 
                            selected_group_id=selected_group_id,
-                           get_marathi_label=get_marathi_label)
+                           get_marathi_label=get_marathi_label,
+                           get_group=get_group)
 
 @app.route('/download_sample_transaction_csv')
 def download_sample_transaction_csv():
